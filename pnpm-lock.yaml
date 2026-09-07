@@ -18,6 +18,33 @@ importers:
         specifier: ^3.0.7
         version: 3.2.7(@types/node@24.13.3)
 
+  packages/capability-resolver:
+    dependencies:
+      '@forge/core':
+        specifier: workspace:*
+        version: link:../core
+
+  packages/core: {}
+
+  packages/storage:
+    dependencies:
+      '@forge/core':
+        specifier: workspace:*
+        version: link:../core
+
+  packages/task-engine:
+    dependencies:
+      '@forge/core':
+        specifier: workspace:*
+        version: link:../core
+      '@forge/storage':
+        specifier: workspace:*
+        version: link:../storage
+    devDependencies:
+      '@forge/capability-resolver':
+        specifier: workspace:*
+        version: link:../capability-resolver
+
 packages:
 
   '@esbuild/aix-ppc64@0.28.2':

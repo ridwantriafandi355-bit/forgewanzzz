@@ -14,6 +14,9 @@
     "@forge/core": "workspace:*",
     "@forge/storage": "workspace:*"
   },
+  "devDependencies": {
+    "@forge/capability-resolver": "workspace:*"
+  },
   "scripts": {
     "build": "tsc",
     "typecheck": "tsc --noEmit",
