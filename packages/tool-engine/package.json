@@ -12,7 +12,8 @@
   },
   "dependencies": {
     "@forge/core": "workspace:*",
-    "@forge/capability-resolver": "workspace:*"
+    "@forge/capability-resolver": "workspace:*",
+    "@forge/auth-connections": "workspace:*"
   },
   "scripts": {
     "build": "tsc",
