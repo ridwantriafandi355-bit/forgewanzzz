@@ -51,12 +51,18 @@ export async function runCommand(options: RunOptions): Promise<RunResult> {
     "INSERT INTO missions (id, project_id, name, status, created_at, updated_at) VALUES (?, ?, ?, 'ACTIVE', ?, ?)"
   ).run(missionId, projectId, options.missionName, now, now);
 
+  const scopedSteps = options.steps.map((s) => ({
+    ...s,
+    id: s.id.startsWith(missionId) ? s.id : `${missionId}_${s.id}`,
+    dependencies: s.dependencies.map((dep) => (dep.startsWith(missionId) ? dep : `${missionId}_${dep}`)),
+  }));
+
   const missionSpec: MissionSpec = {
     missionId,
     projectId,
     name: options.missionName,
     goal: options.goal,
-    steps: options.steps,
+    steps: scopedSteps,
   };
 
   await orchestrator.startMission(missionSpec);
