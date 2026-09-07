@@ -33,6 +33,12 @@ importers:
         specifier: workspace:*
         version: link:../skill-engine
 
+  packages/auth-connections:
+    dependencies:
+      '@forge/core':
+        specifier: workspace:*
+        version: link:../core
+
   packages/capability-resolver:
     dependencies:
       '@forge/core':
@@ -91,6 +97,9 @@ importers:
       '@forge/agent-system':
         specifier: workspace:*
         version: link:../agent-system
+      '@forge/auth-connections':
+        specifier: workspace:*
+        version: link:../auth-connections
       '@forge/capability-resolver':
         specifier: workspace:*
         version: link:../capability-resolver
@@ -180,6 +189,9 @@ importers:
 
   packages/tool-engine:
     dependencies:
+      '@forge/auth-connections':
+        specifier: workspace:*
+        version: link:../auth-connections
       '@forge/capability-resolver':
         specifier: workspace:*
         version: link:../capability-resolver

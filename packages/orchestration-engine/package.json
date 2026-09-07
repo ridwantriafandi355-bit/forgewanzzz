@@ -22,7 +22,8 @@
     "@forge/skill-engine": "workspace:*",
     "@forge/org-manager": "workspace:*",
     "@forge/agent-system": "workspace:*",
-    "@forge/verification-engine": "workspace:*"
+    "@forge/verification-engine": "workspace:*",
+    "@forge/auth-connections": "workspace:*"
   },
   "scripts": {
     "build": "tsc",
