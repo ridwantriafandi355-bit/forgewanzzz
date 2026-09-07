@@ -149,4 +149,56 @@ describe("ProviderRouter", () => {
     expect(result.tokensUsed.total).toBeGreaterThan(0);
     expect(result.decision.providerId).toBeDefined();
   });
+
+  it("enforces HardConstraints (forbiddenProviders, requiresToolCalling, minContextWindow) per Doc 09", () => {
+    const request: RoutingRequest = {
+      taskId: "task-006",
+      agentId: "agent-architect",
+      hardConstraints: {
+        forbiddenProviders: ["anthropic"], // Anthropic forbidden
+        requiresToolCalling: false,
+        minContextWindow: 4000,
+      },
+    };
+
+    const decision = router.route(request);
+    // Should choose ollama since anthropic is forbidden
+    expect(decision.providerId).toBe("local-ollama");
+    expect(decision.modelId).toBe("llama3-8b");
+  });
+
+  it("produces FallbackAuditRecord preventing silent downgrades when fallback triggers", () => {
+    const request: RoutingRequest = {
+      taskId: "task-007",
+      agentId: "agent-tester",
+      preferredProviderId: "local-ollama",
+      preferredModelId: "llama3-8b",
+      hardConstraints: {
+        requiresToolCalling: true, // llama3-8b lacks this, so must fallback to sonnet
+      },
+      fallbackPolicy: "ALLOW_FALLBACK",
+    };
+
+    const decision = router.route(request);
+    expect(decision.fallbackUsed).toBe(true);
+    expect(decision.fallbackAudit).toBeDefined();
+    expect(decision.fallbackAudit?.silentDowngradePrevented).toBe(true);
+    expect(decision.fallbackAudit?.originalTarget?.providerId).toBe("local-ollama");
+    expect(decision.fallbackAudit?.selectedTarget.providerId).toBe("anthropic");
+  });
+
+  it("throws when fallback triggers but fallbackPolicy is FAIL_IMMEDIATELY", () => {
+    const request: RoutingRequest = {
+      taskId: "task-008",
+      agentId: "agent-tester",
+      preferredProviderId: "local-ollama",
+      preferredModelId: "llama3-8b",
+      hardConstraints: {
+        requiresToolCalling: true,
+      },
+      fallbackPolicy: "FAIL_IMMEDIATELY",
+    };
+
+    expect(() => router.route(request)).toThrowError(/FAIL_IMMEDIATELY prevented routing/);
+  });
 });

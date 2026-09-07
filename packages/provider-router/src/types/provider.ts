@@ -56,6 +56,25 @@ export interface ModelDescriptor {
   metadata?: Record<string, unknown>;
 }
 
+export interface HardConstraints {
+  minContextWindow?: number;
+  requiresToolCalling?: boolean;
+  requiresStructuredOutput?: boolean;
+  requiresStreaming?: boolean;
+  requiresMultimodal?: boolean;
+  allowedProviders?: string[];
+  forbiddenProviders?: string[];
+}
+
+export interface FallbackAuditRecord {
+  fallbackUsed: boolean;
+  originalTarget?: { providerId?: string; modelId?: string };
+  selectedTarget: { providerId: string; modelId: string };
+  reason: string;
+  degradationWarnings: string[];
+  silentDowngradePrevented: boolean;
+}
+
 export interface RoutingRequest {
   taskId: string;
   agentId: string;
@@ -64,6 +83,10 @@ export interface RoutingRequest {
   preferredProviderId?: string;
   preferredModelId?: string;
   fallbackPolicy?: "ALLOW_FALLBACK" | "FAIL_IMMEDIATELY";
+  hardConstraints?: HardConstraints;
+  preference?: {
+    optimizeFor?: "cost" | "latency" | "quality";
+  };
 }
 
 export interface RoutingDecision {
@@ -72,6 +95,7 @@ export interface RoutingDecision {
   modelId: string;
   rationale: string;
   fallbackUsed: boolean;
+  fallbackAudit?: FallbackAuditRecord;
   evaluatedCandidatesCount: number;
   timestamp: string;
 }
