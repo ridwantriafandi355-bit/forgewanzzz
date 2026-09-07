@@ -2,3 +2,8 @@ export * from "./types/runtime-types.js";
 export * from "./adapters/l4-native-adapter.js";
 export * from "./adapters/l1-external-adapter.js";
 export * from "./services/runtime-router.js";
+export * from "./discovery/types.js";
+export * from "./discovery/detectors/native-detector.js";
+export * from "./discovery/detectors/claude-code-detector.js";
+export * from "./discovery/detectors/antigravity-detector.js";
+export * from "./discovery/runtime-discovery-coordinator.js";
