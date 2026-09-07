@@ -46,4 +46,69 @@ describe("EventBus", () => {
     expect(handlerA).toHaveBeenCalledWith(event);
     expect(handlerB).toHaveBeenCalledWith(event);
   });
+
+  it("invokes persistent sink on every emitted domain event (Doc 13 Ledger Sink)", async () => {
+    const sink = vi.fn();
+    const bus = new EventBus(sink);
+
+    const eventA: DomainEvent = {
+      id: "evt-sink-1",
+      type: "task.created",
+      timestamp: new Date().toISOString(),
+      payload: { id: "t1" }
+    };
+    const eventB: DomainEvent = {
+      id: "evt-sink-2",
+      type: "board.approval.requested",
+      timestamp: new Date().toISOString(),
+      payload: { tool: "dangerous_op" }
+    };
+
+    await bus.emit(eventA);
+    await bus.emit(eventB);
+
+    expect(sink).toHaveBeenCalledTimes(2);
+    expect(sink).toHaveBeenNthCalledWith(1, eventA);
+    expect(sink).toHaveBeenNthCalledWith(2, eventB);
+  });
+
+  it("delivers events to wildcard subscribeAll listeners", async () => {
+    const bus = new EventBus();
+    const allHandler = vi.fn();
+
+    bus.subscribeAll(allHandler);
+
+    const event: DomainEvent = {
+      id: "evt-wildcard",
+      type: "agent.token.budget.exceeded",
+      timestamp: new Date().toISOString(),
+      payload: { agent: "coder-1" }
+    };
+
+    await bus.emit(event);
+
+    expect(allHandler).toHaveBeenCalledTimes(1);
+    expect(allHandler).toHaveBeenCalledWith(event);
+  });
+
+  it("remains resilient when persistent sink or handler throws", async () => {
+    const errorSink = vi.fn().mockImplementation(() => {
+      throw new Error("Disk full or database lockup");
+    });
+    const bus = new EventBus(errorSink);
+    const goodHandler = vi.fn();
+
+    bus.subscribe("task.done", goodHandler);
+
+    const event: DomainEvent = {
+      id: "evt-err",
+      type: "task.done",
+      timestamp: new Date().toISOString(),
+      payload: { status: "OK" }
+    };
+
+    await expect(bus.emit(event)).resolves.not.toThrow();
+    expect(goodHandler).toHaveBeenCalledWith(event);
+  });
 });
+
