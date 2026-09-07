@@ -1,0 +1,28 @@
+{
+  "name": "@forge/cli",
+  "version": "0.1.0",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "bin": {
+    "forge": "./bin/forge.js"
+  },
+  "exports": {
+    ".": {
+      "import": "./dist/index.js",
+      "types": "./dist/index.d.ts"
+    }
+  },
+  "dependencies": {
+    "@forge/core": "workspace:*",
+    "@forge/storage": "workspace:*",
+    "@forge/task-engine": "workspace:*",
+    "@forge/verification-engine": "workspace:*",
+    "@forge/orchestration-engine": "workspace:*",
+    "@forge/org-manager": "workspace:*"
+  },
+  "scripts": {
+    "build": "tsc",
+    "typecheck": "tsc --noEmit"
+  }
+}
