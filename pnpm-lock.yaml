@@ -44,6 +44,9 @@ importers:
       '@forge/core':
         specifier: workspace:*
         version: link:../core
+      '@forge/dashboard':
+        specifier: workspace:*
+        version: link:../dashboard
       '@forge/orchestration-engine':
         specifier: workspace:*
         version: link:../orchestration-engine
@@ -61,6 +64,27 @@ importers:
         version: link:../verification-engine
 
   packages/core: {}
+
+  packages/dashboard:
+    dependencies:
+      '@forge/core':
+        specifier: workspace:*
+        version: link:../core
+      '@forge/orchestration-engine':
+        specifier: workspace:*
+        version: link:../orchestration-engine
+      '@forge/org-manager':
+        specifier: workspace:*
+        version: link:../org-manager
+      '@forge/storage':
+        specifier: workspace:*
+        version: link:../storage
+      '@forge/task-engine':
+        specifier: workspace:*
+        version: link:../task-engine
+      '@forge/verification-engine':
+        specifier: workspace:*
+        version: link:../verification-engine
 
   packages/orchestration-engine:
     dependencies:

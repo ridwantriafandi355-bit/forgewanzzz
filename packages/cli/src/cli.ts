@@ -2,6 +2,7 @@ import { initCommand } from "./commands/init.js";
 import { runCommand } from "./commands/run.js";
 import { statusCommand } from "./commands/status.js";
 import { verifyCommand } from "./commands/verify.js";
+import { uiCommand } from "./commands/ui.js";
 
 export async function runCli(argv: string[]): Promise<void> {
   const args = argv.slice(2);
@@ -44,8 +45,15 @@ export async function runCli(argv: string[]): Promise<void> {
       break;
     }
 
+    case "ui": {
+      const portArg = args[1] ? parseInt(args[1], 10) : 3000;
+      await uiCommand({ port: isNaN(portArg) ? 3000 : portArg });
+      break;
+    }
+
     default:
-      console.log("Usage: forge <init|run|status|verify>");
+      console.log("Usage: forge <init|run|status|verify|ui>");
       break;
   }
 }
+

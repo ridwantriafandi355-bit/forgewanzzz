@@ -6,6 +6,7 @@ import { initCommand } from "../src/commands/init.js";
 import { statusCommand } from "../src/commands/status.js";
 import { verifyCommand } from "../src/commands/verify.js";
 import { runCommand } from "../src/commands/run.js";
+import { uiCommand } from "../src/commands/ui.js";
 
 describe("Forge CLI Command Center", () => {
   let tempDir: string;
@@ -15,7 +16,7 @@ describe("Forge CLI Command Center", () => {
   });
 
   afterEach(async () => {
-    await fs.rm(tempDir, { recursive: true, force: true });
+    await fs.rm(tempDir, { recursive: true, force: true }).catch(() => {});
   });
 
   it("forge init creates .forge directory, config, and initializes SQLite database", async () => {
@@ -74,4 +75,26 @@ describe("Forge CLI Command Center", () => {
     expect(verifyResult.passed).toBe(true);
     expect(verifyResult.evidence.taskId).toBe("task-verify-demo");
   });
+
+  it("forge ui launches the dashboard server and serves endpoints", async () => {
+    await initCommand({ targetDir: tempDir });
+
+    const ephemeralPort = 31000 + Math.floor(Math.random() * 10000);
+    const uiResult = await uiCommand({
+      workspaceRoot: tempDir,
+      port: ephemeralPort,
+      silent: true,
+    });
+
+    expect(uiResult.port).toBe(ephemeralPort);
+    expect(uiResult.url).toBe(`http://localhost:${ephemeralPort}`);
+
+    const res = await fetch(`${uiResult.url}/api/status`);
+    expect(res.status).toBe(200);
+    const data = await res.json();
+    expect(data.success).toBe(true);
+
+    await uiResult.server.stop();
+  });
 });
+

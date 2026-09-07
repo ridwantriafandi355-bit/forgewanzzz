@@ -1,0 +1,147 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>FORGE WANZZ — Autonomous Factory Dashboard</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/dashboard.css">
+</head>
+<body>
+  <div class="app-container">
+    <!-- TOP NAVIGATION BAR -->
+    <header class="app-header">
+      <div class="brand-group">
+        <div class="brand-logo">
+          <div class="brand-gem"></div>
+          <div class="brand-glow"></div>
+        </div>
+        <div>
+          <div class="brand-title">FORGE <span class="accent-text">WANZZ</span></div>
+          <div class="brand-tagline">Autonomous Multi-Agent Software Factory • v0.1</div>
+        </div>
+      </div>
+
+      <div class="header-actions">
+        <div class="connection-badge" id="connectionBadge">
+          <span class="status-pulse"></span>
+          <span id="connectionText">CONNECTING...</span>
+        </div>
+        <button id="btnNewMission" class="btn btn-primary">
+          <svg class="btn-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12h14"/></svg>
+          Launch Mission
+        </button>
+      </div>
+    </header>
+
+    <!-- HERO METRICS STRIP -->
+    <section class="metrics-grid">
+      <div class="metric-card">
+        <div class="metric-label">Active Missions</div>
+        <div class="metric-value-row">
+          <span class="metric-value" id="valMissions">0</span>
+          <span class="metric-badge cyan">ACTIVE</span>
+        </div>
+      </div>
+      <div class="metric-card">
+        <div class="metric-label">Total Orchestrated Tasks</div>
+        <div class="metric-value-row">
+          <span class="metric-value" id="valTasks">0</span>
+          <span class="metric-badge violet">DAG</span>
+        </div>
+      </div>
+      <div class="metric-card">
+        <div class="metric-label">Deterministic Verifications</div>
+        <div class="metric-value-row">
+          <span class="metric-value" id="valVerified">0</span>
+          <span class="metric-badge emerald">EXIT 0 PASS</span>
+        </div>
+      </div>
+      <div class="metric-card">
+        <div class="metric-label">Active Agent Leases</div>
+        <div class="metric-value-row">
+          <span class="metric-value" id="valLeases">0</span>
+          <span class="metric-badge amber">LOCKED</span>
+        </div>
+      </div>
+    </section>
+
+    <!-- MAIN TWO-COLUMN DASHBOARD CONTENT -->
+    <main class="dashboard-main">
+      <!-- LEFT: MISSIONS & DAG VISUALIZER -->
+      <section class="dashboard-panel panel-left">
+        <div class="panel-header">
+          <div class="panel-title-wrap">
+            <h2 class="panel-title">Mission Topology & Task DAG</h2>
+            <span class="panel-subtitle">Hierarchical DAG execution tree & state machines</span>
+          </div>
+          <div class="panel-controls">
+            <button id="btnRefresh" class="btn btn-secondary btn-sm" title="Refresh state">Refresh</button>
+          </div>
+        </div>
+
+        <div class="dag-container" id="dagContainer">
+          <div class="empty-state" id="dagEmptyState">
+            <div class="empty-icon">⚡</div>
+            <div class="empty-text">No active missions running</div>
+            <button class="btn btn-outline btn-sm" onclick="openMissionModal()">Start your first mission</button>
+          </div>
+          <div class="mission-dag-list" id="missionDagList"></div>
+        </div>
+      </section>
+
+      <!-- RIGHT: LIVE EVENT TERMINAL & SWARM TELEMETRY -->
+      <section class="dashboard-panel panel-right">
+        <div class="panel-header">
+          <div class="panel-title-wrap">
+            <h2 class="panel-title">Factory Event Stream</h2>
+            <span class="panel-subtitle">Deterministic EventBus & Audit Telemetry (SSE)</span>
+          </div>
+          <div class="panel-controls">
+            <label class="toggle-wrap">
+              <input type="checkbox" id="chkAutoScroll" checked>
+              <span>Auto-scroll</span>
+            </label>
+            <button id="btnClearLogs" class="btn btn-secondary btn-sm">Clear</button>
+          </div>
+        </div>
+
+        <div class="terminal-container" id="terminalLog">
+          <div class="log-entry system">
+            <span class="log-time">[SYSTEM]</span>
+            <span class="log-text">FORGE WANZZ Engine initialized. Connecting to EventStream...</span>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <!-- MODAL: LAUNCH NEW MISSION -->
+    <div class="modal-overlay" id="missionModal">
+      <div class="modal-card">
+        <div class="modal-header">
+          <h3 class="modal-title">Launch Autonomous Mission</h3>
+          <button class="modal-close" id="btnCloseModal">&times;</button>
+        </div>
+        <form id="missionForm" class="modal-body">
+          <div class="form-group">
+            <label for="inputMissionName" class="form-label">Mission Codename</label>
+            <input type="text" id="inputMissionName" class="form-input" placeholder="e.g. Misi Auth REST API" required>
+          </div>
+          <div class="form-group">
+            <label for="inputGoal" class="form-label">Mission Goal & Requirements</label>
+            <textarea id="inputGoal" class="form-textarea" rows="4" placeholder="Describe the software engineering goal..." required></textarea>
+          </div>
+          <div class="modal-footer">
+            <button type="button" class="btn btn-secondary" id="btnCancelModal">Cancel</button>
+            <button type="submit" class="btn btn-primary" id="btnSubmitMission">Dispatch to Factory</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <script src="/dashboard.js"></script>
+</body>
+</html>

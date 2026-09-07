@@ -18,7 +18,14 @@ export class ForgeDatabase {
     return this.db;
   }
 
+  private isClosed = false;
+
   close(): void {
-    this.db.close();
+    if (!this.isClosed) {
+      this.isClosed = true;
+      try {
+        this.db.close();
+      } catch {}
+    }
   }
 }
