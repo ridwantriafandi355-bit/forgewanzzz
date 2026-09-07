@@ -26,6 +26,22 @@ importers:
 
   packages/core: {}
 
+  packages/runtime-engine:
+    dependencies:
+      '@forge/capability-resolver':
+        specifier: workspace:*
+        version: link:../capability-resolver
+      '@forge/core':
+        specifier: workspace:*
+        version: link:../core
+      '@forge/tool-engine':
+        specifier: workspace:*
+        version: link:../tool-engine
+    devDependencies:
+      '@forge/workspace':
+        specifier: workspace:*
+        version: link:../workspace
+
   packages/storage:
     dependencies:
       '@forge/core':
@@ -44,6 +60,21 @@ importers:
       '@forge/capability-resolver':
         specifier: workspace:*
         version: link:../capability-resolver
+
+  packages/tool-engine:
+    dependencies:
+      '@forge/capability-resolver':
+        specifier: workspace:*
+        version: link:../capability-resolver
+      '@forge/core':
+        specifier: workspace:*
+        version: link:../core
+
+  packages/workspace:
+    dependencies:
+      '@forge/core':
+        specifier: workspace:*
+        version: link:../core
 
 packages:
 
