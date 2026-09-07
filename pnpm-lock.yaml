@@ -18,6 +18,21 @@ importers:
         specifier: ^3.0.7
         version: 3.2.7(@types/node@24.13.3)
 
+  packages/agent-system:
+    dependencies:
+      '@forge/core':
+        specifier: workspace:*
+        version: link:../core
+      '@forge/org-manager':
+        specifier: workspace:*
+        version: link:../org-manager
+      '@forge/provider-router':
+        specifier: workspace:*
+        version: link:../provider-router
+      '@forge/skill-engine':
+        specifier: workspace:*
+        version: link:../skill-engine
+
   packages/capability-resolver:
     dependencies:
       '@forge/core':
@@ -25,6 +40,18 @@ importers:
         version: link:../core
 
   packages/core: {}
+
+  packages/org-manager:
+    dependencies:
+      '@forge/core':
+        specifier: workspace:*
+        version: link:../core
+
+  packages/provider-router:
+    dependencies:
+      '@forge/core':
+        specifier: workspace:*
+        version: link:../core
 
   packages/runtime-engine:
     dependencies:
@@ -41,6 +68,12 @@ importers:
       '@forge/workspace':
         specifier: workspace:*
         version: link:../workspace
+
+  packages/skill-engine:
+    dependencies:
+      '@forge/core':
+        specifier: workspace:*
+        version: link:../core
 
   packages/storage:
     dependencies:

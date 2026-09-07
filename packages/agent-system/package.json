@@ -13,7 +13,8 @@
   "dependencies": {
     "@forge/core": "workspace:*",
     "@forge/provider-router": "workspace:*",
-    "@forge/skill-engine": "workspace:*"
+    "@forge/skill-engine": "workspace:*",
+    "@forge/org-manager": "workspace:*"
   },
   "scripts": {
     "build": "tsc",
