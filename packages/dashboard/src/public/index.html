@@ -3,262 +3,404 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>FORGE WANZZ — Autonomous Factory Dashboard</title>
+  <title>FORGE WANZZ — Autonomous Company OS (Paperclip)</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="/dashboard.css">
 </head>
 <body>
-  <div class="app-container">
-    <!-- TOP NAVIGATION BAR -->
-    <header class="app-header">
-      <div class="brand-group">
-        <div class="brand-logo">
-          <div class="brand-gem"></div>
-          <div class="brand-glow"></div>
-        </div>
-        <div>
-          <div class="brand-title">FORGE <span class="accent-text">WANZZ</span></div>
-          <div class="brand-tagline">Autonomous Multi-Agent Software Factory • v0.1</div>
+  <div class="paperclip-layout">
+    
+    <!-- LEFT SIDEBAR (PAPERCLIP COMPANY CONTROL PLANE) -->
+    <aside class="paperclip-sidebar">
+      <!-- Company Brand & Board Status -->
+      <div class="sidebar-brand">
+        <div class="brand-avatar">📎</div>
+        <div class="brand-info">
+          <div class="company-name">FORGE WANZZ INC.</div>
+          <div class="company-sub">Zero-Human Software Factory</div>
         </div>
       </div>
 
-      <div class="header-actions">
-        <div class="connection-badge" id="connectionBadge">
-          <span class="status-pulse"></span>
-          <span id="connectionText">CONNECTING...</span>
-        </div>
-        <button id="btnNewMission" class="btn btn-primary">
-          <svg class="btn-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12h14"/></svg>
-          Launch Mission
+      <div class="board-session-pill">
+        <span class="pulse-dot"></span>
+        <span id="boardSessionText">BOARD IN SESSION</span>
+      </div>
+
+      <!-- Navigation Links -->
+      <nav class="sidebar-nav">
+        <div class="nav-section-label">WORKSPACE</div>
+        
+        <button class="nav-item active" data-view="viewOrgChart" id="navOrgChart">
+          <span class="nav-icon">🏢</span>
+          <span class="nav-label">Org Chart</span>
+          <span class="nav-counter" id="navCountAgents">4</span>
         </button>
-      </div>
-    </header>
 
-    <!-- HERO METRICS STRIP -->
-    <section class="metrics-grid">
-      <div class="metric-card">
-        <div class="metric-label">Active Missions</div>
-        <div class="metric-value-row">
-          <span class="metric-value" id="valMissions">0</span>
-          <span class="metric-badge cyan">ACTIVE</span>
-        </div>
-      </div>
-      <div class="metric-card">
-        <div class="metric-label">Total Orchestrated Tasks</div>
-        <div class="metric-value-row">
-          <span class="metric-value" id="valTasks">0</span>
-          <span class="metric-badge violet">DAG</span>
-        </div>
-      </div>
-      <div class="metric-card">
-        <div class="metric-label">Deterministic Verifications</div>
-        <div class="metric-value-row">
-          <span class="metric-value" id="valVerified">0</span>
-          <span class="metric-badge emerald">EXIT 0 PASS</span>
-        </div>
-      </div>
-      <div class="metric-card">
-        <div class="metric-label">Active Agent Leases</div>
-        <div class="metric-value-row">
-          <span class="metric-value" id="valLeases">0</span>
-          <span class="metric-badge amber">LOCKED</span>
-        </div>
-      </div>
-    </section>
-
-    <!-- TAB NAVIGATION BAR -->
-    <nav class="tab-navigation">
-      <div class="tab-group">
-        <button class="tab-btn active" data-tab="tabTopology" id="btnTabTopology">
-          <span class="tab-icon">⚡</span>
-          <span>Topology & DAG</span>
+        <button class="nav-item" data-view="viewTickets" id="navTickets">
+          <span class="nav-icon">🎫</span>
+          <span class="nav-label">Issues & Tickets</span>
+          <span class="nav-counter" id="navCountTickets">0</span>
         </button>
-        <button class="tab-btn" data-tab="tabSwarm" id="btnTabSwarm">
-          <span class="tab-icon">🤖</span>
-          <span>Swarm Inspector</span>
+
+        <button class="nav-item" data-view="viewApprovals" id="navApprovals">
+          <span class="nav-icon">🛡️</span>
+          <span class="nav-label">Board Approvals</span>
+          <span class="nav-badge-warn" id="navBadgeApprovals">0</span>
         </button>
-        <button class="tab-btn" data-tab="tabDiffs" id="btnTabDiffs">
-          <span class="tab-icon">🔍</span>
-          <span>Git Diff Viewer</span>
+
+        <button class="nav-item" data-view="viewBudgets" id="navBudgets">
+          <span class="nav-icon">💰</span>
+          <span class="nav-label">Costs & Budgets</span>
         </button>
-        <button class="tab-btn" data-tab="tabApprovals" id="btnTabApprovals">
-          <span class="tab-icon">🛡️</span>
-          <span>Approvals Queue</span>
-          <span class="tab-badge" id="badgeApprovalsCount">0</span>
+
+        <button class="nav-item" data-view="viewHeartbeats" id="navHeartbeats">
+          <span class="nav-icon">⚡</span>
+          <span class="nav-label">Heartbeats & Runs</span>
         </button>
+
+        <button class="nav-item" data-view="viewDiffs" id="navDiffs">
+          <span class="nav-icon">🔍</span>
+          <span class="nav-label">Code Patches & Diffs</span>
+        </button>
+
+        <div class="nav-section-label">TELEMETRY</div>
+
+        <button class="nav-item" data-view="viewAudit" id="navAudit">
+          <span class="nav-icon">📋</span>
+          <span class="nav-label">Audit Event Stream</span>
+        </button>
+      </nav>
+
+      <!-- Sidebar Footer: Operator Identity -->
+      <div class="sidebar-footer">
+        <div class="operator-profile">
+          <div class="operator-avatar">👑</div>
+          <div class="operator-meta">
+            <div class="operator-name">Chairman of the Board</div>
+            <div class="operator-role">Operator (You)</div>
+          </div>
+        </div>
       </div>
-      <div class="tab-meta-status">
-        <span class="telemetry-pill" id="pillSwarmBurnRate">Burn Rate: 0 tpm</span>
-      </div>
-    </nav>
+    </aside>
 
-    <!-- TAB CONTENT CONTAINER -->
-    <div class="tab-content-container">
-
-      <!-- TAB 1: TOPOLOGY & DAG (Default) -->
-      <section class="tab-view active" id="tabTopology">
-        <div class="dashboard-main">
-          <!-- LEFT: MISSIONS & DAG VISUALIZER -->
-          <div class="dashboard-panel panel-left">
-            <div class="panel-header">
-              <div class="panel-title-wrap">
-                <h2 class="panel-title">Mission Topology & Task DAG</h2>
-                <span class="panel-subtitle">Hierarchical DAG execution tree & state machines</span>
-              </div>
-              <div class="panel-controls">
-                <button id="btnRefresh" class="btn btn-secondary btn-sm" title="Refresh state">Refresh</button>
-              </div>
-            </div>
-
-            <div class="dag-container" id="dagContainer">
-              <div class="empty-state" id="dagEmptyState">
-                <div class="empty-icon">⚡</div>
-                <div class="empty-text">No active missions running</div>
-                <button class="btn btn-outline btn-sm" onclick="openMissionModal()">Start your first mission</button>
-              </div>
-              <div class="mission-dag-list" id="missionDagList"></div>
-            </div>
-          </div>
-
-          <!-- RIGHT: LIVE EVENT TERMINAL & SWARM TELEMETRY -->
-          <div class="dashboard-panel panel-right">
-            <div class="panel-header">
-              <div class="panel-title-wrap">
-                <h2 class="panel-title">Factory Event Stream</h2>
-                <span class="panel-subtitle">Deterministic EventBus & Audit Telemetry (SSE)</span>
-              </div>
-              <div class="panel-controls">
-                <label class="toggle-wrap">
-                  <input type="checkbox" id="chkAutoScroll" checked>
-                  <span>Auto-scroll</span>
-                </label>
-                <button id="btnClearLogs" class="btn btn-secondary btn-sm">Clear</button>
-              </div>
-            </div>
-
-            <div class="terminal-container" id="terminalLog">
-              <div class="log-entry system">
-                <span class="log-time">[SYSTEM]</span>
-                <span class="log-text">FORGE WANZZ Engine initialized. Connecting to EventStream...</span>
-              </div>
-            </div>
+    <!-- MAIN WORKSPACE -->
+    <main class="paperclip-main">
+      
+      <!-- TOP COMPANY NAVBAR -->
+      <header class="paperclip-topbar">
+        <div class="topbar-left">
+          <div class="breadcrumbs">
+            <span class="crumb-company">FORGE WANZZ INC.</span>
+            <span class="crumb-sep">/</span>
+            <span class="crumb-current" id="activeBreadcrumb">Org Chart</span>
           </div>
         </div>
-      </section>
 
-      <!-- TAB 2: AGENT SWARM INSPECTOR -->
-      <section class="tab-view" id="tabSwarm">
-        <div class="swarm-wrapper">
-          <div class="swarm-toolbar">
-            <div class="swarm-stat-group">
-              <div class="stat-pill">
-                <span class="stat-lbl">Active Agents:</span>
-                <span class="stat-val cyan-val" id="swarmActiveCount">0</span>
-              </div>
-              <div class="stat-pill">
-                <span class="stat-lbl">Total Tokens Burned:</span>
-                <span class="stat-val violet-val" id="swarmTokensBurned">0</span>
-              </div>
-              <div class="stat-pill">
-                <span class="stat-lbl">Active Worktree Leases:</span>
-                <span class="stat-val amber-val" id="swarmLeasesCount">0</span>
-              </div>
-            </div>
-            <button class="btn btn-secondary btn-sm" id="btnRefreshSwarm">Refresh Swarm</button>
+        <div class="topbar-center">
+          <div class="finance-pill">
+            <span class="lbl">Monthly Burn:</span>
+            <span class="val cyan" id="topbarBurn">$1.42 / $100.00</span>
           </div>
-
-          <div class="swarm-grid" id="swarmGrid">
-            <!-- Dynamically populated agent cards -->
+          <div class="finance-pill">
+            <span class="lbl">Headcount:</span>
+            <span class="val violet" id="topbarHeadcount">4 Agents</span>
           </div>
         </div>
-      </section>
 
-      <!-- TAB 3: GIT DIFF VIEWER & WORKTREE INSPECTOR -->
-      <section class="tab-view" id="tabDiffs">
-        <div class="diff-wrapper">
-          <div class="diff-toolbar">
-            <div class="diff-toolbar-left">
-              <label for="selectDiffTask" class="diff-label">Inspect Target:</label>
-              <select id="selectDiffTask" class="diff-select">
-                <option value="">Current Workspace (Uncommitted / Staged)</option>
-              </select>
-              <button class="btn btn-secondary btn-sm" id="btnRefreshDiffs">Reload Patch</button>
-            </div>
-            <div class="diff-stats-summary" id="diffStatsSummary">
-              No changes detected
-            </div>
-          </div>
-
-          <div class="diff-split-view">
-            <!-- Left: Files Tree -->
-            <div class="diff-file-sidebar">
-              <div class="sidebar-header">Changed Files</div>
-              <div class="diff-file-list" id="diffFileList">
-                <div class="diff-empty-files">No modified files</div>
-              </div>
-            </div>
-
-            <!-- Right: Diff Code Visualizer -->
-            <div class="diff-viewer-panel">
-              <div class="viewer-header" id="diffViewerHeader">
-                <span id="diffActiveFilePath">Select a file to view patch</span>
-              </div>
-              <div class="diff-code-container" id="diffCodeContainer">
-                <div class="diff-placeholder">No diff output to display</div>
-              </div>
-            </div>
-          </div>
+        <div class="topbar-right">
+          <button class="btn btn-secondary btn-sm" id="btnTriggerHeartbeat">
+            <span class="btn-icon">⚡</span> Wake Heartbeat
+          </button>
+          <button class="btn btn-primary btn-sm" id="btnNewTicket">
+            <svg class="btn-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12h14"/></svg>
+            New Issue
+          </button>
         </div>
-      </section>
+      </header>
 
-      <!-- TAB 4: HUMAN APPROVALS & INTERACTIVE INTERVENTIONS -->
-      <section class="tab-view" id="tabApprovals">
-        <div class="approvals-wrapper">
-          <div class="approvals-header">
+      <!-- CONTENT PANELS -->
+      <div class="views-wrapper">
+
+        <!-- ============================================== -->
+        <!-- VIEW 1: ORG CHART (COMPANY HIERARCHY TREE)     -->
+        <!-- ============================================== -->
+        <section class="view-panel active" id="viewOrgChart">
+          <div class="view-header">
             <div>
-              <h2 class="approvals-title">Human-in-the-Loop Approval Queue</h2>
-              <p class="approvals-subtitle">Circuit breaker interventions, policy attestations (AD-005), and manual operator approvals</p>
+              <h1 class="view-title">Company Organizational Hierarchy</h1>
+              <p class="view-subtitle">Autonomous agent employees, reporting lines, departments, and payroll budgets</p>
             </div>
-            <button class="btn btn-secondary btn-sm" id="btnRefreshApprovals">Refresh Queue</button>
+            <div class="header-tools">
+              <span class="pill-badge green">Autonomous Operating Mode</span>
+              <button class="btn btn-secondary btn-sm" id="btnRefreshOrg">Refresh Tree</button>
+            </div>
+          </div>
+
+          <div class="org-chart-workspace" id="orgChartWorkspace">
+            <!-- Dynamically populated Org Tree -->
+          </div>
+        </section>
+
+        <!-- ============================================== -->
+        <!-- VIEW 2: ISSUES & TICKETS (LINEAR-STYLE BOARD)   -->
+        <!-- ============================================== -->
+        <section class="view-panel" id="viewTickets">
+          <div class="view-header">
+            <div>
+              <h1 class="view-title">Workforce Issues & Task Tickets</h1>
+              <p class="view-subtitle">Linear-style tracking board dispatched across autonomous worktrees</p>
+            </div>
+            <div class="header-tools">
+              <button class="btn btn-secondary btn-sm" id="btnRefreshTickets">Refresh Board</button>
+              <button class="btn btn-primary btn-sm" onclick="openTicketModal()">+ Create Issue</button>
+            </div>
+          </div>
+
+          <div class="kanban-board" id="kanbanBoard">
+            <!-- Column 1: TODO -->
+            <div class="kanban-col" data-status="TODO">
+              <div class="col-header">
+                <span class="col-dot dot-todo"></span>
+                <span class="col-title">Todo</span>
+                <span class="col-count" id="countTodo">0</span>
+              </div>
+              <div class="col-cards" id="colTodo"></div>
+            </div>
+
+            <!-- Column 2: IN PROGRESS -->
+            <div class="kanban-col" data-status="IN_PROGRESS">
+              <div class="col-header">
+                <span class="col-dot dot-progress"></span>
+                <span class="col-title">In Progress</span>
+                <span class="col-count" id="countInProgress">0</span>
+              </div>
+              <div class="col-cards" id="colInProgress"></div>
+            </div>
+
+            <!-- Column 3: IN REVIEW (AWAITING APPROVAL) -->
+            <div class="kanban-col" data-status="IN_REVIEW">
+              <div class="col-header">
+                <span class="col-dot dot-review"></span>
+                <span class="col-title">In Review / Gate</span>
+                <span class="col-count" id="countInReview">0</span>
+              </div>
+              <div class="col-cards" id="colInReview"></div>
+            </div>
+
+            <!-- Column 4: DONE -->
+            <div class="kanban-col" data-status="DONE">
+              <div class="col-header">
+                <span class="col-dot dot-done"></span>
+                <span class="col-title">Done & Verified</span>
+                <span class="col-count" id="countDone">0</span>
+              </div>
+              <div class="col-cards" id="colDone"></div>
+            </div>
+          </div>
+        </section>
+
+        <!-- ============================================== -->
+        <!-- VIEW 3: BOARD APPROVALS (GOVERNANCE ROOM)     -->
+        <!-- ============================================== -->
+        <section class="view-panel" id="viewApprovals">
+          <div class="view-header">
+            <div>
+              <h1 class="view-title">The Board Room (Governance & Overrides)</h1>
+              <p class="view-subtitle">Review agent proposals, circuit-breaker interventions, and sign-offs before merge</p>
+            </div>
+            <button class="btn btn-secondary btn-sm" id="btnRefreshApprovals">Refresh Motions</button>
           </div>
 
           <div class="approvals-container" id="approvalsList">
             <div class="approvals-empty" id="approvalsEmpty">
               <div class="empty-icon">🛡️</div>
-              <div class="empty-text">Zero Pending Interventions</div>
-              <p class="empty-sub">All factory agents are running autonomously within deterministic invariants.</p>
+              <div class="empty-title">Zero Pending Board Motions</div>
+              <p class="empty-desc">All autonomous agents are operating smoothly within established architectural invariants.</p>
             </div>
           </div>
-        </div>
-      </section>
+        </section>
 
-    </div>
+        <!-- ============================================== -->
+        <!-- VIEW 4: COSTS & BUDGETS                        -->
+        <!-- ============================================== -->
+        <section class="view-panel" id="viewBudgets">
+          <div class="view-header">
+            <div>
+              <h1 class="view-title">Company Financials & Spend Controls</h1>
+              <p class="view-subtitle">Token burn rates, model provider payroll, and hard-stop circuit breaker limits</p>
+            </div>
+            <button class="btn btn-secondary btn-sm" id="btnRefreshBudgets">Refresh Financials</button>
+          </div>
 
-    <!-- MODAL: LAUNCH NEW MISSION -->
-    <div class="modal-overlay" id="missionModal">
+          <div class="budgets-grid">
+            <div class="budget-card">
+              <div class="card-label">Monthly Spending Cap</div>
+              <div class="card-val" id="valMonthlyCap">$100.00</div>
+              <div class="card-sub">Hard Stop at 95% cap</div>
+            </div>
+            <div class="budget-card">
+              <div class="card-label">Current Factory Burn</div>
+              <div class="card-val cyan" id="valSpentUsd">$1.42</div>
+              <div class="card-sub" id="valTokensBurned">44,300 total tokens</div>
+            </div>
+            <div class="budget-card">
+              <div class="card-label">Runway Burn Rate</div>
+              <div class="card-val violet" id="valBurnRate">$0.14 / hr</div>
+              <div class="card-sub">Est. 714 hours runtime</div>
+            </div>
+          </div>
+
+          <div class="financial-tables-split">
+            <!-- Model Distribution -->
+            <div class="paperclip-card">
+              <div class="paperclip-card-header">Model Provider Cost Distribution</div>
+              <div class="model-bars" id="modelBars"></div>
+            </div>
+
+            <!-- Agent Payroll -->
+            <div class="paperclip-card">
+              <div class="paperclip-card-header">Agent Payroll Breakdown</div>
+              <table class="payroll-table">
+                <thead>
+                  <tr>
+                    <th>Role</th>
+                    <th>Agent ID</th>
+                    <th>Model</th>
+                    <th>Spend</th>
+                  </tr>
+                </thead>
+                <tbody id="payrollTableBody"></tbody>
+              </table>
+            </div>
+          </div>
+        </section>
+
+        <!-- ============================================== -->
+        <!-- VIEW 5: HEARTBEATS & WORKTREES                 -->
+        <!-- ============================================== -->
+        <section class="view-panel" id="viewHeartbeats">
+          <div class="view-header">
+            <div>
+              <h1 class="view-title">Autonomous Heartbeat Scheduler</h1>
+              <p class="view-subtitle">Autonomous wake-up cycles, heartbeat countdowns, and active worktree locks</p>
+            </div>
+            <button class="btn btn-secondary btn-sm" id="btnRefreshHeartbeats">Refresh Pings</button>
+          </div>
+
+          <div class="heartbeats-wrapper" id="heartbeatsList">
+            <!-- Populated dynamically -->
+          </div>
+        </section>
+
+        <!-- ============================================== -->
+        <!-- VIEW 6: CODE PATCHES & DIFFS                   -->
+        <!-- ============================================== -->
+        <section class="view-panel" id="viewDiffs">
+          <div class="view-header">
+            <div>
+              <h1 class="view-title">Worktree Pull Request & Diff Inspector</h1>
+              <p class="view-subtitle">Inspect code modifications created by Worker agents before sequential merge</p>
+            </div>
+            <div class="header-tools">
+              <select id="selectDiffTask" class="diff-select">
+                <option value="">Current Workspace Working Tree</option>
+              </select>
+              <button class="btn btn-secondary btn-sm" id="btnRefreshDiffs">Reload Patch</button>
+            </div>
+          </div>
+
+          <div class="diff-split-view">
+            <div class="diff-file-sidebar">
+              <div class="sidebar-header">Modified Files</div>
+              <div class="diff-file-list" id="diffFileList">
+                <div class="diff-empty-files">No modified files</div>
+              </div>
+            </div>
+
+            <div class="diff-viewer-panel">
+              <div class="viewer-header" id="diffViewerHeader">
+                <span id="diffActiveFilePath">Select a file to inspect patch</span>
+              </div>
+              <div class="diff-code-container" id="diffCodeContainer">
+                <div class="diff-placeholder">No active git modifications detected</div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- ============================================== -->
+        <!-- VIEW 7: AUDIT EVENT STREAM                     -->
+        <!-- ============================================== -->
+        <section class="view-panel" id="viewAudit">
+          <div class="view-header">
+            <div>
+              <h1 class="view-title">Company Immutable Audit Log</h1>
+              <p class="view-subtitle">Deterministic EventBus telemetry, tool calls, and state transitions</p>
+            </div>
+            <div class="header-tools">
+              <label class="toggle-wrap">
+                <input type="checkbox" id="chkAutoScroll" checked>
+                <span>Auto-scroll</span>
+              </label>
+              <button id="btnClearLogs" class="btn btn-secondary btn-sm">Clear</button>
+            </div>
+          </div>
+
+          <div class="terminal-container" id="terminalLog">
+            <div class="log-entry system">
+              <span class="log-time">[SYSTEM]</span>
+              <span class="log-text">FORGE WANZZ Paperclip OS Initialized. EventStream Active.</span>
+            </div>
+          </div>
+        </section>
+
+      </div>
+    </main>
+
+    <!-- MODAL: CREATE NEW ISSUE / TICKET -->
+    <div class="modal-overlay" id="ticketModal">
       <div class="modal-card">
         <div class="modal-header">
-          <h3 class="modal-title">Launch Autonomous Mission</h3>
+          <h3 class="modal-title">Create Issue / Company Objective</h3>
           <button class="modal-close" id="btnCloseModal">&times;</button>
         </div>
-        <form id="missionForm" class="modal-body">
+        <form id="ticketForm" class="modal-body">
           <div class="form-group">
-            <label for="inputMissionName" class="form-label">Mission Codename</label>
-            <input type="text" id="inputMissionName" class="form-input" placeholder="e.g. Misi Auth REST API" required>
+            <label for="inputTicketTitle" class="form-label">Issue Title</label>
+            <input type="text" id="inputTicketTitle" class="form-input" placeholder="e.g. Implement User Authentication REST Service" required>
+          </div>
+          <div class="form-row">
+            <div class="form-group flex-1">
+              <label for="selectTicketPriority" class="form-label">Priority</label>
+              <select id="selectTicketPriority" class="form-select">
+                <option value="P1">P1 - High</option>
+                <option value="P0">P0 - Urgent (Board Priority)</option>
+                <option value="P2">P2 - Medium</option>
+              </select>
+            </div>
+            <div class="form-group flex-1">
+              <label for="selectTicketAssignee" class="form-label">Assign Department</label>
+              <select id="selectTicketAssignee" class="form-select">
+                <option value="Worker">Core Engineering (Worker Unit 01)</option>
+                <option value="Supervisor">Planning (Supervisor Prime)</option>
+                <option value="Evaluator">Quality Assurance (Evaluator Guard)</option>
+              </select>
+            </div>
           </div>
           <div class="form-group">
-            <label for="inputGoal" class="form-label">Mission Goal & Requirements</label>
-            <textarea id="inputGoal" class="form-textarea" rows="4" placeholder="Describe the software engineering goal..." required></textarea>
+            <label for="inputTicketDesc" class="form-label">Technical Goal & Acceptance Invariants</label>
+            <textarea id="inputTicketDesc" class="form-textarea" rows="4" placeholder="Detail the engineering requirements..." required></textarea>
           </div>
           <div class="modal-footer">
             <button type="button" class="btn btn-secondary" id="btnCancelModal">Cancel</button>
-            <button type="submit" class="btn btn-primary" id="btnSubmitMission">Dispatch to Factory</button>
+            <button type="submit" class="btn btn-primary" id="btnSubmitTicket">Dispatch to Workforce</button>
           </div>
         </form>
       </div>
     </div>
+
   </div>
 
   <script src="/dashboard.js"></script>

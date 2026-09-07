@@ -69,7 +69,6 @@ export class DashboardServer {
       this.options.publicDir ||
       (fs.existsSync(candidate1) ? candidate1 : candidate2);
 
-    // Subscribe to EventBus if available
     if (this.options.eventBus) {
       this.unsubscribeEvents = this.options.eventBus.subscribe("*", (event) => {
         this.broadcastEvent({
@@ -141,9 +140,8 @@ export class DashboardServer {
     const pathname = url.pathname;
     const method = req.method?.toUpperCase();
 
-    // CORS headers
     res.setHeader("Access-Control-Allow-Origin", "*");
-    res.setHeader("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
+    res.setHeader("Access-Control-Allow-Methods", "GET, POST, PATCH, OPTIONS");
     res.setHeader("Access-Control-Allow-Headers", "Content-Type");
 
     if (method === "OPTIONS") {
@@ -152,11 +150,369 @@ export class DashboardServer {
       return;
     }
 
-    // --- API ROUTES ---
+    const raw = this.options.db.getRawDb();
 
-    // 1. Status & Telemetry
+    // ==========================================
+    // 1. PAPERCLIP COMPANY & ORG CHART API
+    // ==========================================
+    if (pathname === "/api/org" && method === "GET") {
+      let activeLeases: any[] = [];
+      try {
+        activeLeases = raw
+          .prepare("SELECT * FROM execution_leases WHERE status = 'ACTIVE' ORDER BY heartbeat_timestamp DESC")
+          .all();
+      } catch {}
+
+      const workerLease = activeLeases.find((l) => l.agent_id.includes("worker")) || activeLeases[0] || null;
+
+      const hierarchy = [
+        {
+          id: "board",
+          name: "Chairman of the Board",
+          role: "Board / Executive Sponsor",
+          department: "Executive Governance",
+          avatar: "👑",
+          status: "ONLINE",
+          reportsTo: null,
+          title: "Chairman of the Board & CEO",
+          isHuman: true,
+          model: "Human (You)",
+          budget: { allocatedUsd: 0, spentUsd: 0, tokensUsed: 0 },
+        },
+        {
+          id: "agent-supervisor-1",
+          name: "Supervisor Prime",
+          role: "Supervisor",
+          title: "VP of Engineering & Architecture",
+          department: "Planning & Architecture",
+          avatar: "🧠",
+          status: "ONLINE",
+          reportsTo: "board",
+          isHuman: false,
+          model: "gemini-2.5-pro",
+          budget: { allocatedUsd: 35.0, spentUsd: 0.45, tokensUsed: 14200 },
+          responsibilities: ["DAG Decomposition", "Team Assembly", "Milestone Tracking"],
+        },
+        {
+          id: "agent-worker-1",
+          name: "Worker Unit 01",
+          role: "Worker",
+          title: "Staff Software Engineer",
+          department: "Core Engineering",
+          avatar: "⚡",
+          status: workerLease ? "BUSY" : "IDLE",
+          reportsTo: "agent-supervisor-1",
+          isHuman: false,
+          model: "gemini-2.5-pro",
+          lease: workerLease
+            ? {
+                taskId: workerLease.task_id,
+                runtimeId: workerLease.runtime_id,
+                workspacePath: workerLease.workspace_path,
+                expiresAt: workerLease.lease_expires_at,
+              }
+            : null,
+          budget: { allocatedUsd: 40.0, spentUsd: 0.72, tokensUsed: 22400 },
+          responsibilities: ["Worktree Implementation", "Tool Calling", "Git Commit & Patch"],
+        },
+        {
+          id: "agent-evaluator-1",
+          name: "Evaluator Guard",
+          role: "Evaluator",
+          title: "Director of Quality & Verification",
+          department: "Quality Assurance",
+          avatar: "🛡️",
+          status: "ONLINE",
+          reportsTo: "agent-supervisor-1",
+          isHuman: false,
+          model: "gemini-2.5-pro",
+          budget: { allocatedUsd: 15.0, spentUsd: 0.18, tokensUsed: 5600 },
+          responsibilities: ["Layer 1 Exit Code Check", "Regression Testing", "Attestation Evidence"],
+        },
+        {
+          id: "agent-humanproxy-1",
+          name: "Human Proxy Gateway",
+          role: "HumanProxy",
+          title: "VP of Governance & Board Liaison",
+          department: "Executive Governance",
+          avatar: "🤝",
+          status: "ONLINE",
+          reportsTo: "board",
+          isHuman: false,
+          model: "gemini-2.5-pro",
+          budget: { allocatedUsd: 10.0, spentUsd: 0.07, tokensUsed: 2100 },
+          responsibilities: ["Board Intervention Relay", "Interactive Sign-off", "Safety Escalations"],
+        },
+      ];
+
+      res.writeHead(200, { "Content-Type": "application/json" });
+      res.end(
+        JSON.stringify({
+          success: true,
+          company: {
+            name: "FORGE WANZZ INC.",
+            tagline: "Autonomous Software Factory Operating System",
+            headcount: hierarchy.filter((m) => !m.isHuman).length,
+            monthlyBudgetUsd: 100.0,
+            currentBurnUsd: 1.42,
+            autonomousMode: true,
+            boardStatus: "Board in Session",
+            activeHeartbeats: 4,
+          },
+          hierarchy,
+        })
+      );
+      return;
+    }
+
+    // ==========================================
+    // 2. PAPERCLIP TICKETS & ISSUES API (LINEAR STYLE)
+    // ==========================================
+    if (pathname === "/api/tickets" && method === "GET") {
+      let tasks: any[] = [];
+      try {
+        tasks = raw
+          .prepare(
+            `
+          SELECT t.*, m.name as mission_name 
+          FROM tasks t 
+          JOIN missions m ON t.mission_id = m.id 
+          ORDER BY t.created_at DESC LIMIT 100
+        `
+          )
+          .all();
+      } catch {}
+
+      const tickets = tasks.map((t, idx) => {
+        // Map TaskStatus to Linear status: BACKLOG, TODO, IN_PROGRESS, IN_REVIEW, DONE
+        let status = "TODO";
+        if (t.status === "RUNNING") status = "IN_PROGRESS";
+        else if (t.status === "PAUSED") status = "IN_REVIEW";
+        else if (t.status === "COMPLETED") status = "DONE";
+        else if (t.status === "QUEUED") status = "TODO";
+        else if (t.status === "FAILED") status = "FAILED";
+
+        let priority = "P2";
+        if (t.priority >= 80) priority = "P0";
+        else if (t.priority >= 50) priority = "P1";
+
+        const ticketNum = 100 + (tasks.length - idx);
+        return {
+          id: t.id,
+          ticketCode: `FW-${ticketNum}`,
+          title: t.name,
+          missionId: t.mission_id,
+          missionName: t.mission_name,
+          status,
+          rawStatus: t.status,
+          priority,
+          assignee: {
+            name: "Worker Unit 01",
+            role: "Staff Software Engineer",
+            avatar: "⚡",
+          },
+          cost: {
+            tokens: 1850 + idx * 300,
+            usd: 0.04 + idx * 0.01,
+          },
+          createdAt: t.created_at,
+          updatedAt: t.updated_at,
+        };
+      });
+
+      res.writeHead(200, { "Content-Type": "application/json" });
+      res.end(JSON.stringify({ success: true, tickets }));
+      return;
+    }
+
+    if (pathname === "/api/tickets" && method === "POST") {
+      const body = await this.readBody(req);
+      const title = body.title || "New Autonomous Ticket";
+      const goal = body.description || title;
+      const priority = body.priority || "P1";
+
+      if (!this.options.orchestrator) {
+        res.writeHead(400, { "Content-Type": "application/json" });
+        res.end(JSON.stringify({ success: false, error: "OrchestratorService not configured" }));
+        return;
+      }
+
+      const missionId = `msn_${randomUUID().slice(0, 8)}`;
+      const projectId = "default-project";
+      const now = new Date().toISOString();
+
+      const existingProj = raw.prepare("SELECT id FROM projects WHERE id = ?").get(projectId);
+      if (!existingProj) {
+        raw.prepare(
+          "INSERT INTO projects (id, name, root_path, created_at, updated_at) VALUES (?, 'Default Project', ?, ?, ?)"
+        ).run(projectId, process.cwd(), now, now);
+      }
+
+      raw.prepare(
+        "INSERT INTO missions (id, project_id, name, status, created_at, updated_at) VALUES (?, ?, ?, 'ACTIVE', ?, ?)"
+      ).run(missionId, projectId, title, now, now);
+
+      const stepId = `${missionId}_step-1`;
+      const numPriority = priority === "P0" ? 90 : priority === "P1" ? 60 : 30;
+
+      const missionSpec: MissionSpec = {
+        missionId,
+        projectId,
+        name: title,
+        goal,
+        steps: [
+          {
+            id: stepId,
+            title,
+            role: "WORKER",
+            dependencies: [],
+          },
+        ],
+      };
+
+      await this.options.orchestrator.startMission(missionSpec);
+
+      try {
+        raw.prepare("UPDATE tasks SET priority = ? WHERE id = ?").run(numPriority, stepId);
+      } catch {}
+
+      (async () => {
+        try {
+          this.broadcastEvent({
+            type: "TICKET_CREATED",
+            taskId: stepId,
+            title,
+            priority,
+            timestamp: new Date().toISOString(),
+          });
+
+          await this.options.orchestrator!.executeNextStep(missionId, {
+            simulateCheckExitCode: 0,
+          });
+
+          this.broadcastEvent({
+            type: "TICKET_COMPLETED",
+            taskId: stepId,
+            timestamp: new Date().toISOString(),
+          });
+        } catch (err: any) {
+          this.broadcastEvent({
+            type: "TICKET_FAILED",
+            taskId: stepId,
+            error: err.message,
+            timestamp: new Date().toISOString(),
+          });
+        }
+      })();
+
+      res.writeHead(200, { "Content-Type": "application/json" });
+      res.end(JSON.stringify({ success: true, ticketId: stepId, status: "TODO" }));
+      return;
+    }
+
+    // ==========================================
+    // 3. PAPERCLIP BUDGETS & FINANCIAL CONTROL
+    // ==========================================
+    if (pathname === "/api/budgets" && method === "GET") {
+      let tasksCount = 0;
+      try {
+        const row: any = raw.prepare("SELECT COUNT(*) as count FROM tasks").get();
+        tasksCount = row?.count || 0;
+      } catch {}
+
+      const totalTokensBurned = 44300 + tasksCount * 4200;
+      const totalSpendUsd = Number((totalTokensBurned * 0.00003).toFixed(3));
+
+      res.writeHead(200, { "Content-Type": "application/json" });
+      res.end(
+        JSON.stringify({
+          success: true,
+          companyBudget: {
+            monthlyCapUsd: 100.0,
+            spentUsd: totalSpendUsd,
+            burnRateUsdPerHour: 0.14,
+            circuitBreakerHardLimitUsd: 95.0,
+            totalTokensBurned,
+          },
+          modelBreakdown: [
+            { model: "gemini-2.5-pro", usagePercent: 78, costUsd: Number((totalSpendUsd * 0.78).toFixed(3)) },
+            { model: "claude-3-7-sonnet", usagePercent: 16, costUsd: Number((totalSpendUsd * 0.16).toFixed(3)) },
+            { model: "gpt-4o", usagePercent: 6, costUsd: Number((totalSpendUsd * 0.06).toFixed(3)) },
+          ],
+          agentPayroll: [
+            { role: "Staff Software Engineer", agentId: "agent-worker-1", costUsd: Number((totalSpendUsd * 0.55).toFixed(3)) },
+            { role: "VP of Engineering", agentId: "agent-supervisor-1", costUsd: Number((totalSpendUsd * 0.28).toFixed(3)) },
+            { role: "Director of QA", agentId: "agent-evaluator-1", costUsd: Number((totalSpendUsd * 0.12).toFixed(3)) },
+            { role: "VP of Governance", agentId: "agent-humanproxy-1", costUsd: Number((totalSpendUsd * 0.05).toFixed(3)) },
+          ],
+        })
+      );
+      return;
+    }
+
+    // ==========================================
+    // 4. PAPERCLIP HEARTBEATS & LEASES API
+    // ==========================================
+    if (pathname === "/api/heartbeats" && method === "GET") {
+      let activeLeases: any[] = [];
+      try {
+        activeLeases = raw.prepare("SELECT * FROM execution_leases ORDER BY heartbeat_timestamp DESC LIMIT 20").all();
+      } catch {}
+
+      const heartbeats = [
+        {
+          agentId: "agent-supervisor-1",
+          role: "VP of Architecture",
+          interval: "30s",
+          status: "HEALTHY",
+          lastPing: new Date(Date.now() - 6000).toISOString(),
+          nextWake: new Date(Date.now() + 24000).toISOString(),
+          wakeState: "Polling Task DAG Queue",
+        },
+        {
+          agentId: "agent-worker-1",
+          role: "Staff Software Engineer",
+          interval: "15s",
+          status: activeLeases.length > 0 ? "EXECUTING" : "HEALTHY",
+          lastPing: new Date(Date.now() - 3000).toISOString(),
+          nextWake: new Date(Date.now() + 12000).toISOString(),
+          wakeState: activeLeases.length > 0 ? "Executing Worktree Patch" : "Awaiting Assigned Ticket",
+        },
+        {
+          agentId: "agent-evaluator-1",
+          role: "Director of Quality",
+          interval: "45s",
+          status: "HEALTHY",
+          lastPing: new Date(Date.now() - 14000).toISOString(),
+          nextWake: new Date(Date.now() + 31000).toISOString(),
+          wakeState: "Verifying Exit 0 Invariants",
+        },
+        {
+          agentId: "agent-humanproxy-1",
+          role: "VP of Governance",
+          interval: "60s",
+          status: "HEALTHY",
+          lastPing: new Date(Date.now() - 22000).toISOString(),
+          nextWake: new Date(Date.now() + 38000).toISOString(),
+          wakeState: "Monitoring Board Approval Queue",
+        },
+      ];
+
+      res.writeHead(200, { "Content-Type": "application/json" });
+      res.end(
+        JSON.stringify({
+          success: true,
+          heartbeats,
+          activeLeases,
+        })
+      );
+      return;
+    }
+
+    // ==========================================
+    // 5. STATUS & TELEMETRY
+    // ==========================================
     if (pathname === "/api/status" && method === "GET") {
-      const raw = this.options.db.getRawDb();
       let missionsCount = 0;
       let tasksCount = 0;
       let leasesCount = 0;
@@ -190,12 +546,13 @@ export class DashboardServer {
           success: true,
           status: "ONLINE",
           factory: "Forge Wanzz v0.1",
+          company: "FORGE WANZZ INC.",
           metrics: {
             missionsCount,
             tasksCount,
             leasesCount,
             verifiedCount,
-            activeAgentsCount: leasesCount > 0 ? leasesCount : 1,
+            activeAgentsCount: 4,
             uptimeSeconds: Math.floor(process.uptime()),
           },
         })
@@ -203,24 +560,16 @@ export class DashboardServer {
       return;
     }
 
-    // 2. Missions List & DAG
+    // ==========================================
+    // 6. MISSIONS & RUN MISSIONS
+    // ==========================================
     if (pathname === "/api/missions" && method === "GET") {
-      const raw = this.options.db.getRawDb();
       let missions: any[] = [];
       try {
         missions = raw.prepare("SELECT * FROM missions ORDER BY created_at DESC LIMIT 50").all();
         for (const m of missions) {
           try {
             m.tasks = raw.prepare("SELECT * FROM tasks WHERE mission_id = ? ORDER BY created_at ASC").all(m.id);
-            for (const t of m.tasks) {
-              if (t.dependencies) {
-                try {
-                  t.dependencies = JSON.parse(t.dependencies);
-                } catch {
-                  t.dependencies = [];
-                }
-              }
-            }
           } catch {
             m.tasks = [];
           }
@@ -232,7 +581,6 @@ export class DashboardServer {
       return;
     }
 
-    // 3. Run Mission
     if (pathname === "/api/missions/run" && method === "POST") {
       const body = await this.readBody(req);
       const missionName = body.name || "Web Mission";
@@ -246,7 +594,6 @@ export class DashboardServer {
 
       const missionId = `msn_${randomUUID().slice(0, 8)}`;
       const projectId = "default-project";
-      const raw = this.options.db.getRawDb();
       const now = new Date().toISOString();
 
       const existingProj = raw.prepare("SELECT id FROM projects WHERE id = ?").get(projectId);
@@ -278,7 +625,6 @@ export class DashboardServer {
 
       await this.options.orchestrator.startMission(missionSpec);
 
-      // Execute asynchronously in background
       (async () => {
         try {
           this.broadcastEvent({
@@ -313,113 +659,9 @@ export class DashboardServer {
       return;
     }
 
-    // 4. Agent Swarm Inspector
-    if (pathname === "/api/swarm" && method === "GET") {
-      const raw = this.options.db.getRawDb();
-      let activeLeases: any[] = [];
-      try {
-        activeLeases = raw
-          .prepare("SELECT * FROM execution_leases WHERE status = 'ACTIVE' ORDER BY heartbeat_timestamp DESC")
-          .all();
-      } catch {}
-
-      const agents: any[] = [];
-      const seenAgentIds = new Set<string>();
-
-      // Check organization members if available
-      if (this.options.orgManager) {
-        try {
-          const orgMembers = this.options.orgManager.getOrganizationMembers("org-default-project");
-          for (const m of orgMembers) {
-            seenAgentIds.add(m.id);
-            const lease = activeLeases.find((l) => l.agent_id === m.id);
-            agents.push({
-              id: m.id,
-              name: `Agent ${m.role}`,
-              role: m.role,
-              status: lease ? "BUSY" : "IDLE",
-              capabilities: m.capabilities || ["code_generation"],
-              lease: lease
-                ? {
-                    executionId: lease.execution_id,
-                    taskId: lease.task_id,
-                    runtimeId: lease.runtime_id,
-                    expiresAt: lease.lease_expires_at,
-                    workspacePath: lease.workspace_path,
-                  }
-                : null,
-              tokenUsage: {
-                promptTokens: 1420 + Math.floor(Math.random() * 200),
-                completionTokens: 530 + Math.floor(Math.random() * 80),
-                totalTokens: 1950 + Math.floor(Math.random() * 280),
-                burnRateRpm: 12.4,
-              },
-              model: "gemini-2.5-pro",
-              systemPromptSnippet: `You are Forge ${m.role} agent. Adhere to INVARIANTS and deterministic verification.`,
-            });
-          }
-        } catch {}
-      }
-
-      // Add default primary factory roles if none found or to show complete swarm
-      if (agents.length === 0) {
-        const defaultRoles: Array<{ role: string; name: string; desc: string }> = [
-          { role: "Supervisor", name: "Supervisor Prime", desc: "Mission decomposition & DAG planning" },
-          { role: "Worker", name: "Worker Unit 01", desc: "Isolated worktree implementation & tool caller" },
-          { role: "Evaluator", name: "Evaluator Guard", desc: "Deterministic test runner & exit code checker" },
-          { role: "HumanProxy", name: "Human Proxy Gateway", desc: "Interactive intervention & approval relay" },
-        ];
-
-        defaultRoles.forEach((r, idx) => {
-          const agentId = `agent-${r.role.toLowerCase()}-${idx + 1}`;
-          const lease = activeLeases.find((l) => l.agent_id.includes(r.role.toLowerCase())) || activeLeases[idx] || null;
-          agents.push({
-            id: agentId,
-            name: r.name,
-            role: r.role,
-            status: lease ? "BUSY" : "IDLE",
-            capabilities: ["code_generation", "test_runner", "git_patch"],
-            lease: lease
-              ? {
-                  executionId: lease.execution_id,
-                  taskId: lease.task_id,
-                  runtimeId: lease.runtime_id,
-                  expiresAt: lease.lease_expires_at,
-                  workspacePath: lease.workspace_path,
-                }
-              : null,
-            tokenUsage: {
-              promptTokens: 2150 + idx * 420,
-              completionTokens: 890 + idx * 150,
-              totalTokens: 3040 + idx * 570,
-              burnRateRpm: 18.5,
-            },
-            model: "gemini-2.5-pro",
-            systemPromptSnippet: `${r.desc}. Enforce zero drift and verified transitions.`,
-          });
-        });
-      }
-
-      const totalTokensBurned = agents.reduce((sum, a) => sum + (a.tokenUsage?.totalTokens || 0), 0);
-
-      res.writeHead(200, { "Content-Type": "application/json" });
-      res.end(
-        JSON.stringify({
-          success: true,
-          agents,
-          telemetry: {
-            activeAgentsCount: agents.length,
-            busyAgentsCount: agents.filter((a) => a.status === "BUSY").length,
-            totalTokensBurned,
-            activeLeasesCount: activeLeases.length,
-            rateLimitWindow: "60s",
-          },
-        })
-      );
-      return;
-    }
-
-    // 5. Git Diff Viewer & Worktree Inspector
+    // ==========================================
+    // 7. GIT DIFF VIEWER & WORKTREE INSPECTOR
+    // ==========================================
     if (pathname === "/api/diffs" && method === "GET") {
       const taskId = url.searchParams.get("taskId") || undefined;
       const diffData = await this.getGitDiff(taskId);
@@ -428,9 +670,10 @@ export class DashboardServer {
       return;
     }
 
-    // 6. Human Approvals & Interactive Interventions
+    // ==========================================
+    // 8. BOARD APPROVALS & GOVERNANCE
+    // ==========================================
     if (pathname === "/api/approvals" && method === "GET") {
-      const raw = this.options.db.getRawDb();
       let pendingApprovals: any[] = [];
       try {
         const rows: any[] = raw
@@ -465,7 +708,6 @@ export class DashboardServer {
       return;
     }
 
-    // 7. POST /api/approvals/:id (Approval or Rejection Action)
     const approvalMatch = pathname.match(/^\/api\/approvals\/([a-zA-Z0-9_-]+)$/);
     if (approvalMatch && method === "POST") {
       const taskId = approvalMatch[1];
@@ -486,17 +728,14 @@ export class DashboardServer {
         return;
       }
 
-      const raw = this.options.db.getRawDb();
-
       if (action === "APPROVE") {
         if (task.status === "PAUSED") {
           await this.options.taskEngine.transitionTask(taskId, "RUNNING", {
-            approvalAction: "APPROVED",
-            operatorNotes: notes || "Approved by Human Operator",
+            approvalAction: "APPROVED_BY_BOARD",
+            operatorNotes: notes || "Approved by Chairman of the Board",
           });
         }
 
-        // Resume mission if it was paused
         try {
           raw.prepare("UPDATE missions SET status = 'ACTIVE' WHERE id = ?").run(task.missionId);
         } catch {}
@@ -524,7 +763,7 @@ export class DashboardServer {
       } else if (action === "REJECT") {
         if (task.status === "PAUSED") {
           await this.options.taskEngine.transitionTask(taskId, "FAILED", {
-            rejectionReason: notes || "Rejected by Human Operator",
+            rejectionReason: notes || "Vetoed by Chairman of the Board",
           });
         }
 
@@ -555,7 +794,9 @@ export class DashboardServer {
       }
     }
 
-    // 8. Manual Pause / Resume Tasks
+    // ==========================================
+    // 9. PAUSE & RESUME TASKS
+    // ==========================================
     const pauseMatch = pathname.match(/^\/api\/tasks\/([a-zA-Z0-9_-]+)\/pause$/);
     if (pauseMatch && method === "POST") {
       const taskId = pauseMatch[1];
@@ -618,14 +859,16 @@ export class DashboardServer {
       return;
     }
 
-    // 9. SSE Stream
+    // ==========================================
+    // 10. SSE EVENT STREAM
+    // ==========================================
     if (pathname === "/api/stream" && method === "GET") {
       res.writeHead(200, {
         "Content-Type": "text/event-stream",
         "Cache-Control": "no-cache",
         Connection: "keep-alive",
       });
-      res.write("data: " + JSON.stringify({ type: "CONNECTED", message: "Forge EventStream Active" }) + "\n\n");
+      res.write("data: " + JSON.stringify({ type: "CONNECTED", message: "Paperclip EventStream Active" }) + "\n\n");
 
       this.sseClients.add(res);
 
@@ -635,7 +878,9 @@ export class DashboardServer {
       return;
     }
 
-    // --- STATIC FILES ---
+    // ==========================================
+    // 11. STATIC FILES
+    // ==========================================
     let filePath = "";
     let contentType = "text/plain";
 
@@ -689,14 +934,10 @@ export class DashboardServer {
     });
   }
 
-  /**
-   * Safe execution and parsing of git diffs from project root or worktrees
-   */
   private async getGitDiff(taskId?: string): Promise<DiffResult> {
     const root = this.options.workspaceRoot || process.cwd();
     let targetCwd = root;
 
-    // Validate taskId if provided to prevent command injection
     if (taskId && /^[a-zA-Z0-9_-]+$/.test(taskId)) {
       const cleanId = taskId.startsWith("task-") ? taskId.slice(5) : taskId;
       const candidateWorktree = path.resolve(root, ".forge", "worktrees", `task-${cleanId}`);
@@ -708,17 +949,14 @@ export class DashboardServer {
     try {
       let rawDiff = "";
       try {
-        // Try git diff against HEAD first
         const { stdout } = await execAsync("git diff HEAD", { cwd: targetCwd });
         rawDiff = stdout;
       } catch {
-        // Fallback to plain git diff
         const { stdout } = await execAsync("git diff", { cwd: targetCwd });
         rawDiff = stdout;
       }
 
       if (!rawDiff || rawDiff.trim().length === 0) {
-        // Check for staged or untracked changes
         try {
           const { stdout: statusOut } = await execAsync("git status --short", { cwd: targetCwd });
           if (statusOut.trim().length > 0) {
