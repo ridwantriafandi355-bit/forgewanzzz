@@ -1,0 +1,31 @@
+{
+  "name": "@forge/orchestration-engine",
+  "version": "0.1.0",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "import": "./dist/index.js",
+      "types": "./dist/index.d.ts"
+    }
+  },
+  "dependencies": {
+    "@forge/core": "workspace:*",
+    "@forge/storage": "workspace:*",
+    "@forge/task-engine": "workspace:*",
+    "@forge/capability-resolver": "workspace:*",
+    "@forge/workspace": "workspace:*",
+    "@forge/tool-engine": "workspace:*",
+    "@forge/runtime-engine": "workspace:*",
+    "@forge/provider-router": "workspace:*",
+    "@forge/skill-engine": "workspace:*",
+    "@forge/org-manager": "workspace:*",
+    "@forge/agent-system": "workspace:*",
+    "@forge/verification-engine": "workspace:*"
+  },
+  "scripts": {
+    "build": "tsc",
+    "typecheck": "tsc --noEmit"
+  }
+}

@@ -76,9 +76,17 @@ export class TaskEngineService {
     const completedIds = new Set(allTasks.filter(t => t.status === "COMPLETED").map(t => t.id));
 
     return allTasks.filter(task => {
-      if (task.status !== "QUEUED") return false;
+      if (task.status !== "QUEUED" && task.status !== "RETRYING") return false;
       return task.dependencies.every(depId => completedIds.has(depId));
     });
+  }
+
+  getTask(taskId: string): TaskRecord | null {
+    return this.taskRepo.getTaskById(taskId);
+  }
+
+  getTasks(missionId: string): TaskRecord[] {
+    return this.taskRepo.getTasksByMission(missionId);
   }
 
   async transitionTask(taskId: string, targetStatus: TaskStatus, outputPayload?: Record<string, unknown>): Promise<void> {
