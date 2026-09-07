@@ -189,4 +189,71 @@ describe("DashboardServer (Paperclip Autonomous Company OS)", () => {
     expect(data.success).toBe(true);
     expect(typeof data.hasDiff).toBe("boolean");
   });
+
+  it("serves GET /api/events querying the persistent SQLite ledger per Doc 13", async () => {
+    // 1. Emit an event through eventBus
+    await eventBus.emit({
+      id: "evt_dash_ledger_1",
+      type: "board.policy.updated",
+      timestamp: new Date().toISOString(),
+      payload: { missionId: "msn_ledger_test", change: "Enforce strict CRITICAL gate" },
+    });
+
+    // 2. Query /api/events
+    const res = await fetch(`http://localhost:${port}/api/events?streamId=msn_ledger_test`);
+    expect(res.status).toBe(200);
+    const data = await res.json();
+    expect(data.success).toBe(true);
+    expect(data.events.length).toBeGreaterThanOrEqual(1);
+    expect(data.events[0].eventType).toBe("board.policy.updated");
+  });
+
+  it("integrates ApprovalRepository and board approval actions with decision audit", async () => {
+    const raw = db.getRawDb();
+    const now = new Date().toISOString();
+    raw.prepare("INSERT INTO projects (id, name, root_path, created_at, updated_at) VALUES ('p_appr', 'P Appr', ?, ?, ?)").run(tempDir, now, now);
+    raw.prepare("INSERT INTO missions (id, project_id, name, status, created_at, updated_at) VALUES ('m_appr', 'p_appr', 'Mission Appr', 'ACTIVE', ?, ?)").run(now, now);
+    raw.prepare("INSERT INTO tasks (id, mission_id, name, status, idempotency_key, input_payload, created_at, updated_at) VALUES ('t_appr', 'm_appr', 'Privileged Deploy', 'PAUSED', 'idem_appr', '{}', ?, ?)").run(now, now);
+
+    // Insert approval into ApprovalRepository
+    const appRepo = (server as any).approvalRepo;
+    appRepo.create({
+      id: "appr_room_99",
+      taskId: "t_appr",
+      missionId: "m_appr",
+      toolName: "system.privileged_exec",
+      riskLevel: "CRITICAL",
+      reason: "Kernel module injection",
+      status: "PENDING",
+      requestedByAgent: "agent.worker",
+      createdAt: now,
+    });
+
+    // Query pending approvals from API
+    const listRes = await fetch(`http://localhost:${port}/api/approvals`);
+    const listData = await listRes.json();
+    const found = listData.approvals.find((a: any) => a.id === "appr_room_99" || a.approvalId === "appr_room_99");
+    expect(found).toBeDefined();
+    expect(found.toolName).toBe("system.privileged_exec");
+
+    // Board decides to approve
+    const decisionRes = await fetch(`http://localhost:${port}/api/approvals/appr_room_99`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        action: "APPROVE",
+        notes: "Audited and verified by Board",
+        decidedBy: "Chairman of the Board",
+      }),
+    });
+    const decisionData = await decisionRes.json();
+    expect(decisionData.success).toBe(true);
+    expect(decisionData.action).toBe("APPROVED");
+
+    // Verify status updated in ApprovalRepository
+    const updated = appRepo.findById("appr_room_99");
+    expect(updated?.status).toBe("APPROVED");
+    expect(updated?.decidedBy).toBe("Chairman of the Board");
+  });
 });
+

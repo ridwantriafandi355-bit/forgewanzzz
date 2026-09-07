@@ -5,7 +5,7 @@ import { fileURLToPath } from "node:url";
 import { randomUUID } from "node:crypto";
 import { exec } from "node:child_process";
 import { promisify } from "node:util";
-import { ForgeDatabase } from "@forge/storage";
+import { ForgeDatabase, ApprovalRepository, EventRepository } from "@forge/storage";
 import { EventBus } from "@forge/core";
 import { TaskEngineService } from "@forge/task-engine";
 import { OrchestratorService, MissionSpec } from "@forge/orchestration-engine";
@@ -22,9 +22,12 @@ export interface DashboardServerOptions {
   orchestrator?: OrchestratorService;
   orgManager?: OrganizationManager;
   eventBus?: EventBus;
+  approvalRepo?: ApprovalRepository;
+  eventRepo?: EventRepository;
   publicDir?: string;
   workspaceRoot?: string;
 }
+
 
 export interface DiffLine {
   type: "add" | "del" | "normal";
@@ -57,9 +60,13 @@ export class DashboardServer {
   private sseClients: Set<http.ServerResponse> = new Set();
   private isRunning = false;
   private unsubscribeEvents: (() => void) | null = null;
+  private approvalRepo: ApprovalRepository;
+  private eventRepo: EventRepository;
 
   constructor(options: DashboardServerOptions) {
     this.options = options;
+    this.approvalRepo = options.approvalRepo || new ApprovalRepository(options.db);
+    this.eventRepo = options.eventRepo || new EventRepository(options.db);
   }
 
   public async start(): Promise<number> {
@@ -70,6 +77,24 @@ export class DashboardServer {
       (fs.existsSync(candidate1) ? candidate1 : candidate2);
 
     if (this.options.eventBus) {
+      const existingSink = this.options.eventBus.getPersistentSink();
+      this.options.eventBus.setPersistentSink(async (event) => {
+        try {
+          const payload = (event.payload || {}) as Record<string, any>;
+          this.eventRepo.saveEvent({
+            id: event.id,
+            eventType: event.type,
+            streamId: payload.missionId || payload.taskId || "company",
+            streamType: payload.missionId ? "MISSION" : "SYSTEM",
+            payload,
+            timestamp: event.timestamp,
+          });
+        } catch {}
+        if (existingSink) {
+          await existingSink(event);
+        }
+      });
+
       this.unsubscribeEvents = this.options.eventBus.subscribe("*", (event) => {
         this.broadcastEvent({
           type: "EVENT_BUS",
@@ -78,6 +103,7 @@ export class DashboardServer {
         });
       });
     }
+
 
     return new Promise((resolve, reject) => {
       this.server = http.createServer(async (req, res) => {
@@ -671,11 +697,40 @@ export class DashboardServer {
     }
 
     // ==========================================
+    // 7.1 PERSISTENT EVENT LEDGER API (DOC 13)
+    // ==========================================
+    if (pathname === "/api/events" && method === "GET") {
+      const streamId = url.searchParams.get("streamId") || undefined;
+      const limit = Number(url.searchParams.get("limit")) || 50;
+      const events = this.eventRepo.getEvents(streamId, limit);
+      res.writeHead(200, { "Content-Type": "application/json" });
+      res.end(JSON.stringify({ success: true, events, count: events.length }));
+      return;
+    }
+
+    // ==========================================
     // 8. BOARD APPROVALS & GOVERNANCE
     // ==========================================
     if (pathname === "/api/approvals" && method === "GET") {
       let pendingApprovals: any[] = [];
       try {
+        const dbApprovals = this.approvalRepo.findPending();
+        for (const app of dbApprovals) {
+          pendingApprovals.push({
+            id: app.id,
+            approvalId: app.id,
+            taskId: app.taskId,
+            missionId: app.missionId,
+            toolName: app.toolName,
+            riskLevel: app.riskLevel,
+            reason: app.reason,
+            status: app.status,
+            requestedByAgent: app.requestedByAgent,
+            createdAt: app.createdAt,
+            taskTitle: `Privileged Tool: ${app.toolName}`,
+          });
+        }
+
         const rows: any[] = raw
           .prepare(
             `
@@ -688,19 +743,24 @@ export class DashboardServer {
           )
           .all();
 
-        pendingApprovals = rows.map((r) => ({
-          taskId: r.id,
-          missionId: r.mission_id,
-          missionName: r.mission_name,
-          taskTitle: r.name,
-          status: r.status,
-          missionStatus: r.mission_status,
-          retryCount: r.retry_count,
-          maxRetries: r.max_retries,
-          outputPayload: r.output_payload ? JSON.parse(r.output_payload) : null,
-          inputPayload: r.input_payload ? JSON.parse(r.input_payload) : null,
-          updatedAt: r.updated_at,
-        }));
+        for (const r of rows) {
+          if (!pendingApprovals.some((a) => a.taskId === r.id)) {
+            pendingApprovals.push({
+              id: `task_appr_${r.id}`,
+              taskId: r.id,
+              missionId: r.mission_id,
+              missionName: r.mission_name,
+              taskTitle: r.name,
+              status: r.status,
+              missionStatus: r.mission_status,
+              retryCount: r.retry_count,
+              maxRetries: r.max_retries,
+              outputPayload: r.output_payload ? JSON.parse(r.output_payload) : null,
+              inputPayload: r.input_payload ? JSON.parse(r.input_payload) : null,
+              updatedAt: r.updated_at,
+            });
+          }
+        }
       } catch {}
 
       res.writeHead(200, { "Content-Type": "application/json" });
@@ -710,89 +770,82 @@ export class DashboardServer {
 
     const approvalMatch = pathname.match(/^\/api\/approvals\/([a-zA-Z0-9_-]+)$/);
     if (approvalMatch && method === "POST") {
-      const taskId = approvalMatch[1];
+      const targetId = approvalMatch[1];
       const body = await this.readBody(req);
       const action = (body.action || "APPROVE").toUpperCase();
       const notes = body.notes || "";
+      const decidedBy = body.decidedBy || "Chairman of the Board";
 
-      if (!this.options.taskEngine) {
-        res.writeHead(400, { "Content-Type": "application/json" });
-        res.end(JSON.stringify({ success: false, error: "TaskEngineService not configured" }));
-        return;
-      }
-
-      const task = this.options.taskEngine.getTask(taskId);
-      if (!task) {
-        res.writeHead(404, { "Content-Type": "application/json" });
-        res.end(JSON.stringify({ success: false, error: `Task '${taskId}' not found` }));
-        return;
-      }
-
-      if (action === "APPROVE") {
-        if (task.status === "PAUSED") {
-          await this.options.taskEngine.transitionTask(taskId, "RUNNING", {
-            approvalAction: "APPROVED_BY_BOARD",
-            operatorNotes: notes || "Approved by Chairman of the Board",
-          });
-        }
-
-        try {
-          raw.prepare("UPDATE missions SET status = 'ACTIVE' WHERE id = ?").run(task.missionId);
-        } catch {}
-
-        if (this.options.eventBus) {
-          await this.options.eventBus.emit({
-            id: randomUUID(),
-            type: "human.approval.granted",
-            timestamp: new Date().toISOString(),
-            payload: { taskId, missionId: task.missionId, notes },
-          });
-        }
-
-        this.broadcastEvent({
-          type: "APPROVAL_GRANTED",
-          taskId,
-          missionId: task.missionId,
-          notes,
-          timestamp: new Date().toISOString(),
-        });
-
-        res.writeHead(200, { "Content-Type": "application/json" });
-        res.end(JSON.stringify({ success: true, taskId, status: "RUNNING", action: "APPROVED" }));
-        return;
-      } else if (action === "REJECT") {
-        if (task.status === "PAUSED") {
-          await this.options.taskEngine.transitionTask(taskId, "FAILED", {
-            rejectionReason: notes || "Vetoed by Chairman of the Board",
-          });
-        }
-
-        if (this.options.eventBus) {
-          await this.options.eventBus.emit({
-            id: randomUUID(),
-            type: "human.approval.rejected",
-            timestamp: new Date().toISOString(),
-            payload: { taskId, missionId: task.missionId, notes },
-          });
-        }
-
-        this.broadcastEvent({
-          type: "APPROVAL_REJECTED",
-          taskId,
-          missionId: task.missionId,
-          notes,
-          timestamp: new Date().toISOString(),
-        });
-
-        res.writeHead(200, { "Content-Type": "application/json" });
-        res.end(JSON.stringify({ success: true, taskId, status: "FAILED", action: "REJECTED" }));
-        return;
-      } else {
+      if (action !== "APPROVE" && action !== "REJECT") {
         res.writeHead(400, { "Content-Type": "application/json" });
         res.end(JSON.stringify({ success: false, error: `Invalid action '${action}'. Must be APPROVE or REJECT` }));
         return;
       }
+
+      // Check if targetId is an approval in ApprovalRepository
+      const existingApproval = this.approvalRepo.findById(targetId);
+      if (existingApproval) {
+        const newStatus = action === "APPROVE" ? "APPROVED" : "REJECTED";
+        this.approvalRepo.updateStatus(targetId, newStatus, decidedBy);
+      }
+
+      const taskId = existingApproval ? existingApproval.taskId : targetId.replace(/^task_appr_/, "");
+
+      if (this.options.taskEngine) {
+        const task = this.options.taskEngine.getTask(taskId);
+        if (task) {
+          if (action === "APPROVE") {
+            if (task.status === "PAUSED") {
+              await this.options.taskEngine.transitionTask(taskId, "RUNNING", {
+                approvalAction: "APPROVED_BY_BOARD",
+                operatorNotes: notes || `Approved by ${decidedBy}`,
+              });
+            }
+            try {
+              raw.prepare("UPDATE missions SET status = 'ACTIVE' WHERE id = ?").run(task.missionId);
+            } catch {}
+          } else if (action === "REJECT") {
+            if (task.status === "PAUSED") {
+              await this.options.taskEngine.transitionTask(taskId, "FAILED", {
+                rejectionReason: notes || `Vetoed by ${decidedBy}`,
+              });
+            }
+          }
+        }
+      }
+
+      const eventType = action === "APPROVE" ? "board.approval.granted" : "board.approval.rejected";
+      if (this.options.eventBus) {
+        await this.options.eventBus.emit({
+          id: randomUUID(),
+          type: eventType,
+          timestamp: new Date().toISOString(),
+          payload: { targetId, taskId, action, notes, decidedBy },
+        });
+      }
+
+      this.broadcastEvent({
+        type: action === "APPROVE" ? "APPROVAL_GRANTED" : "APPROVAL_REJECTED",
+        targetId,
+        taskId,
+        notes,
+        decidedBy,
+        timestamp: new Date().toISOString(),
+      });
+
+      res.writeHead(200, { "Content-Type": "application/json" });
+      res.end(
+        JSON.stringify({
+          success: true,
+          id: targetId,
+          taskId,
+          status: action === "APPROVE" ? "RUNNING" : "FAILED",
+          action: action === "APPROVE" ? "APPROVED" : "REJECTED",
+        })
+      );
+      return;
     }
+
 
     // ==========================================
     // 9. PAUSE & RESUME TASKS
