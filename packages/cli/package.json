@@ -20,7 +20,11 @@
     "@forge/verification-engine": "workspace:*",
     "@forge/orchestration-engine": "workspace:*",
     "@forge/org-manager": "workspace:*",
-    "@forge/dashboard": "workspace:*"
+    "@forge/dashboard": "workspace:*",
+    "@forge/runtime-engine": "workspace:*",
+    "@forge/auth-connections": "workspace:*",
+    "@forge/provider-router": "workspace:*",
+    "@forge/capability-resolver": "workspace:*"
   },
   "scripts": {
     "build": "tsc",

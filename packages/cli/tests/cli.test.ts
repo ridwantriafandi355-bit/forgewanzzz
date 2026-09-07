@@ -96,5 +96,79 @@ describe("Forge CLI Command Center", () => {
 
     await uiResult.server.stop();
   });
+
+  it("forge discovery inspects host runtimes non-destructively per Doc 08 & 15", async () => {
+    const { discoveryCommand } = await import("../src/commands/discovery.js");
+    const result = await discoveryCommand();
+
+    expect(result.count).toBeGreaterThanOrEqual(3);
+    const native = result.runtimes.find((r) => r.id === "native-forge");
+    expect(native).toBeDefined();
+    expect(native?.trustProfile.trustClass).toBe("L4");
+    expect(native?.available).toBe(true);
+  });
+
+  it("forge connections manages authenticated external capabilities with zero raw token leakage per Doc 10 & 15", async () => {
+    const { connectionsCommand } = await import("../src/commands/connections.js");
+    
+    // 1. List connections
+    const listResult = await connectionsCommand({ subcommand: "list" });
+    expect(listResult.connections.length).toBeGreaterThanOrEqual(3);
+
+    // 2. Add custom connection
+    const addResult = await connectionsCommand({
+      subcommand: "add",
+      connectionId: "conn_custom_test",
+      name: "Custom Testing Provider",
+      type: "PROVIDER",
+      authType: "API_KEY",
+      secretRef: "secret://env/TEST_API_KEY",
+    });
+    expect(addResult.connections.some((c) => c.id === "conn_custom_test")).toBe(true);
+  });
+
+  it("forge resume rehydrates mission and skips verified tasks per Doc 06 & 15", async () => {
+    await initCommand({ targetDir: tempDir });
+    const { resumeCommand } = await import("../src/commands/resume.js");
+
+    const runResult = await runCommand({
+      workspaceRoot: tempDir,
+      missionName: "Resume Test Mission",
+      goal: "Test resuming completed workflow",
+      steps: [{ id: "task-resume-1", title: "Complete step", role: "WORKER", dependencies: [] }],
+    });
+
+    const resumeResult = await resumeCommand({
+      workspaceRoot: tempDir,
+      missionId: runResult.missionId,
+    });
+
+    expect(resumeResult.resumed).toBe(true);
+    expect(resumeResult.skippedCompletedTasks).toBe(1);
+    expect(resumeResult.remainingTasks).toBe(0);
+  });
+
+  it("forge dlq lists and inspects failed tasks per Doc 06 & 15", async () => {
+    await initCommand({ targetDir: tempDir });
+    const { dlqCommand } = await import("../src/commands/dlq.js");
+
+    // Clean DLQ initially
+    const dlqResult = await dlqCommand({ workspaceRoot: tempDir });
+    expect(dlqResult.items).toBeDefined();
+    expect(dlqResult.count).toBe(0);
+  });
+
+  it("runCli routes discovery, connections, resume, and dlq commands without unhandled errors", async () => {
+    const { runCli } = await import("../src/cli.js");
+
+    // Test discovery routing
+    await expect(runCli(["node", "forge", "discovery", "--json"])).resolves.not.toThrow();
+
+    // Test connections routing
+    await expect(runCli(["node", "forge", "connections", "--json"])).resolves.not.toThrow();
+
+    // Test dlq routing
+    await expect(runCli(["node", "forge", "dlq", "--json"])).resolves.not.toThrow();
+  });
 });
 

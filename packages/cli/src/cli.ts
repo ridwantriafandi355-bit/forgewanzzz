@@ -3,10 +3,15 @@ import { runCommand } from "./commands/run.js";
 import { statusCommand } from "./commands/status.js";
 import { verifyCommand } from "./commands/verify.js";
 import { uiCommand } from "./commands/ui.js";
+import { discoveryCommand } from "./commands/discovery.js";
+import { connectionsCommand } from "./commands/connections.js";
+import { resumeCommand } from "./commands/resume.js";
+import { dlqCommand } from "./commands/dlq.js";
 
 export async function runCli(argv: string[]): Promise<void> {
   const args = argv.slice(2);
   const command = args[0];
+  const isJson = args.includes("--json");
 
   switch (command) {
     case "init": {
@@ -34,6 +39,40 @@ export async function runCli(argv: string[]): Promise<void> {
       break;
     }
 
+    case "discovery": {
+      await discoveryCommand({ json: isJson });
+      break;
+    }
+
+    case "connections": {
+      const sub = (args[1] === "add" || args[1] === "test") ? args[1] : "list";
+      const targetId = sub === "test" ? args[2] : undefined;
+      await connectionsCommand({ subcommand: sub, connectionId: targetId, json: isJson });
+      break;
+    }
+
+    case "resume": {
+      const missionId = args[1];
+      if (!missionId) {
+        console.error("[Forge] Error: missionId argument required for resume.");
+        process.exit(1);
+      }
+      await resumeCommand({ missionId, json: isJson });
+      break;
+    }
+
+    case "dlq": {
+      const sub = args[1];
+      if (sub === "inspect" && args[2]) {
+        await dlqCommand({ inspectTaskId: args[2], json: isJson });
+      } else if (sub === "retry" && args[2]) {
+        await dlqCommand({ retryTaskId: args[2], json: isJson });
+      } else {
+        await dlqCommand({ json: isJson });
+      }
+      break;
+    }
+
     case "verify": {
       const taskId = args[1];
       if (!taskId) {
@@ -52,8 +91,7 @@ export async function runCli(argv: string[]): Promise<void> {
     }
 
     default:
-      console.log("Usage: forge <init|run|status|verify|ui>");
+      console.log("Usage: forge <init|run|status|verify|discovery|connections|resume|dlq|ui>");
       break;
   }
 }
-

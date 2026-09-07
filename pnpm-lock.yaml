@@ -47,6 +47,12 @@ importers:
 
   packages/cli:
     dependencies:
+      '@forge/auth-connections':
+        specifier: workspace:*
+        version: link:../auth-connections
+      '@forge/capability-resolver':
+        specifier: workspace:*
+        version: link:../capability-resolver
       '@forge/core':
         specifier: workspace:*
         version: link:../core
@@ -59,6 +65,12 @@ importers:
       '@forge/org-manager':
         specifier: workspace:*
         version: link:../org-manager
+      '@forge/provider-router':
+        specifier: workspace:*
+        version: link:../provider-router
+      '@forge/runtime-engine':
+        specifier: workspace:*
+        version: link:../runtime-engine
       '@forge/storage':
         specifier: workspace:*
         version: link:../storage
