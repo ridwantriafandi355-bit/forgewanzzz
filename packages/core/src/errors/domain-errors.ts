@@ -6,6 +6,12 @@ export class ForgeError extends Error {
   }
 }
 
+export class DomainError extends ForgeError {
+  constructor(code: string, message: string, public readonly details?: Record<string, unknown>) {
+    super(message, code);
+  }
+}
+
 export class InvariantViolationError extends ForgeError {
   constructor(invariantId: string, details: string) {
     super(`[${invariantId}] Invariant violation: ${details}`, "INVARIANT_VIOLATION");
