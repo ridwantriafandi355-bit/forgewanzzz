@@ -68,54 +68,173 @@
       </div>
     </section>
 
-    <!-- MAIN TWO-COLUMN DASHBOARD CONTENT -->
-    <main class="dashboard-main">
-      <!-- LEFT: MISSIONS & DAG VISUALIZER -->
-      <section class="dashboard-panel panel-left">
-        <div class="panel-header">
-          <div class="panel-title-wrap">
-            <h2 class="panel-title">Mission Topology & Task DAG</h2>
-            <span class="panel-subtitle">Hierarchical DAG execution tree & state machines</span>
-          </div>
-          <div class="panel-controls">
-            <button id="btnRefresh" class="btn btn-secondary btn-sm" title="Refresh state">Refresh</button>
-          </div>
-        </div>
+    <!-- TAB NAVIGATION BAR -->
+    <nav class="tab-navigation">
+      <div class="tab-group">
+        <button class="tab-btn active" data-tab="tabTopology" id="btnTabTopology">
+          <span class="tab-icon">⚡</span>
+          <span>Topology & DAG</span>
+        </button>
+        <button class="tab-btn" data-tab="tabSwarm" id="btnTabSwarm">
+          <span class="tab-icon">🤖</span>
+          <span>Swarm Inspector</span>
+        </button>
+        <button class="tab-btn" data-tab="tabDiffs" id="btnTabDiffs">
+          <span class="tab-icon">🔍</span>
+          <span>Git Diff Viewer</span>
+        </button>
+        <button class="tab-btn" data-tab="tabApprovals" id="btnTabApprovals">
+          <span class="tab-icon">🛡️</span>
+          <span>Approvals Queue</span>
+          <span class="tab-badge" id="badgeApprovalsCount">0</span>
+        </button>
+      </div>
+      <div class="tab-meta-status">
+        <span class="telemetry-pill" id="pillSwarmBurnRate">Burn Rate: 0 tpm</span>
+      </div>
+    </nav>
 
-        <div class="dag-container" id="dagContainer">
-          <div class="empty-state" id="dagEmptyState">
-            <div class="empty-icon">⚡</div>
-            <div class="empty-text">No active missions running</div>
-            <button class="btn btn-outline btn-sm" onclick="openMissionModal()">Start your first mission</button>
+    <!-- TAB CONTENT CONTAINER -->
+    <div class="tab-content-container">
+
+      <!-- TAB 1: TOPOLOGY & DAG (Default) -->
+      <section class="tab-view active" id="tabTopology">
+        <div class="dashboard-main">
+          <!-- LEFT: MISSIONS & DAG VISUALIZER -->
+          <div class="dashboard-panel panel-left">
+            <div class="panel-header">
+              <div class="panel-title-wrap">
+                <h2 class="panel-title">Mission Topology & Task DAG</h2>
+                <span class="panel-subtitle">Hierarchical DAG execution tree & state machines</span>
+              </div>
+              <div class="panel-controls">
+                <button id="btnRefresh" class="btn btn-secondary btn-sm" title="Refresh state">Refresh</button>
+              </div>
+            </div>
+
+            <div class="dag-container" id="dagContainer">
+              <div class="empty-state" id="dagEmptyState">
+                <div class="empty-icon">⚡</div>
+                <div class="empty-text">No active missions running</div>
+                <button class="btn btn-outline btn-sm" onclick="openMissionModal()">Start your first mission</button>
+              </div>
+              <div class="mission-dag-list" id="missionDagList"></div>
+            </div>
           </div>
-          <div class="mission-dag-list" id="missionDagList"></div>
+
+          <!-- RIGHT: LIVE EVENT TERMINAL & SWARM TELEMETRY -->
+          <div class="dashboard-panel panel-right">
+            <div class="panel-header">
+              <div class="panel-title-wrap">
+                <h2 class="panel-title">Factory Event Stream</h2>
+                <span class="panel-subtitle">Deterministic EventBus & Audit Telemetry (SSE)</span>
+              </div>
+              <div class="panel-controls">
+                <label class="toggle-wrap">
+                  <input type="checkbox" id="chkAutoScroll" checked>
+                  <span>Auto-scroll</span>
+                </label>
+                <button id="btnClearLogs" class="btn btn-secondary btn-sm">Clear</button>
+              </div>
+            </div>
+
+            <div class="terminal-container" id="terminalLog">
+              <div class="log-entry system">
+                <span class="log-time">[SYSTEM]</span>
+                <span class="log-text">FORGE WANZZ Engine initialized. Connecting to EventStream...</span>
+              </div>
+            </div>
+          </div>
         </div>
       </section>
 
-      <!-- RIGHT: LIVE EVENT TERMINAL & SWARM TELEMETRY -->
-      <section class="dashboard-panel panel-right">
-        <div class="panel-header">
-          <div class="panel-title-wrap">
-            <h2 class="panel-title">Factory Event Stream</h2>
-            <span class="panel-subtitle">Deterministic EventBus & Audit Telemetry (SSE)</span>
+      <!-- TAB 2: AGENT SWARM INSPECTOR -->
+      <section class="tab-view" id="tabSwarm">
+        <div class="swarm-wrapper">
+          <div class="swarm-toolbar">
+            <div class="swarm-stat-group">
+              <div class="stat-pill">
+                <span class="stat-lbl">Active Agents:</span>
+                <span class="stat-val cyan-val" id="swarmActiveCount">0</span>
+              </div>
+              <div class="stat-pill">
+                <span class="stat-lbl">Total Tokens Burned:</span>
+                <span class="stat-val violet-val" id="swarmTokensBurned">0</span>
+              </div>
+              <div class="stat-pill">
+                <span class="stat-lbl">Active Worktree Leases:</span>
+                <span class="stat-val amber-val" id="swarmLeasesCount">0</span>
+              </div>
+            </div>
+            <button class="btn btn-secondary btn-sm" id="btnRefreshSwarm">Refresh Swarm</button>
           </div>
-          <div class="panel-controls">
-            <label class="toggle-wrap">
-              <input type="checkbox" id="chkAutoScroll" checked>
-              <span>Auto-scroll</span>
-            </label>
-            <button id="btnClearLogs" class="btn btn-secondary btn-sm">Clear</button>
-          </div>
-        </div>
 
-        <div class="terminal-container" id="terminalLog">
-          <div class="log-entry system">
-            <span class="log-time">[SYSTEM]</span>
-            <span class="log-text">FORGE WANZZ Engine initialized. Connecting to EventStream...</span>
+          <div class="swarm-grid" id="swarmGrid">
+            <!-- Dynamically populated agent cards -->
           </div>
         </div>
       </section>
-    </main>
+
+      <!-- TAB 3: GIT DIFF VIEWER & WORKTREE INSPECTOR -->
+      <section class="tab-view" id="tabDiffs">
+        <div class="diff-wrapper">
+          <div class="diff-toolbar">
+            <div class="diff-toolbar-left">
+              <label for="selectDiffTask" class="diff-label">Inspect Target:</label>
+              <select id="selectDiffTask" class="diff-select">
+                <option value="">Current Workspace (Uncommitted / Staged)</option>
+              </select>
+              <button class="btn btn-secondary btn-sm" id="btnRefreshDiffs">Reload Patch</button>
+            </div>
+            <div class="diff-stats-summary" id="diffStatsSummary">
+              No changes detected
+            </div>
+          </div>
+
+          <div class="diff-split-view">
+            <!-- Left: Files Tree -->
+            <div class="diff-file-sidebar">
+              <div class="sidebar-header">Changed Files</div>
+              <div class="diff-file-list" id="diffFileList">
+                <div class="diff-empty-files">No modified files</div>
+              </div>
+            </div>
+
+            <!-- Right: Diff Code Visualizer -->
+            <div class="diff-viewer-panel">
+              <div class="viewer-header" id="diffViewerHeader">
+                <span id="diffActiveFilePath">Select a file to view patch</span>
+              </div>
+              <div class="diff-code-container" id="diffCodeContainer">
+                <div class="diff-placeholder">No diff output to display</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- TAB 4: HUMAN APPROVALS & INTERACTIVE INTERVENTIONS -->
+      <section class="tab-view" id="tabApprovals">
+        <div class="approvals-wrapper">
+          <div class="approvals-header">
+            <div>
+              <h2 class="approvals-title">Human-in-the-Loop Approval Queue</h2>
+              <p class="approvals-subtitle">Circuit breaker interventions, policy attestations (AD-005), and manual operator approvals</p>
+            </div>
+            <button class="btn btn-secondary btn-sm" id="btnRefreshApprovals">Refresh Queue</button>
+          </div>
+
+          <div class="approvals-container" id="approvalsList">
+            <div class="approvals-empty" id="approvalsEmpty">
+              <div class="empty-icon">🛡️</div>
+              <div class="empty-text">Zero Pending Interventions</div>
+              <p class="empty-sub">All factory agents are running autonomously within deterministic invariants.</p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+    </div>
 
     <!-- MODAL: LAUNCH NEW MISSION -->
     <div class="modal-overlay" id="missionModal">

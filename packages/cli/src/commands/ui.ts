@@ -46,7 +46,9 @@ export async function uiCommand(options: UiOptions = {}): Promise<UiResult> {
     db,
     taskEngine,
     orchestrator,
+    orgManager,
     eventBus,
+    workspaceRoot: root,
   });
 
   const actualPort = await server.start();
