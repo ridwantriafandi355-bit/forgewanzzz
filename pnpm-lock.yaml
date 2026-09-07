@@ -39,7 +39,67 @@ importers:
         specifier: workspace:*
         version: link:../core
 
+  packages/cli:
+    dependencies:
+      '@forge/core':
+        specifier: workspace:*
+        version: link:../core
+      '@forge/orchestration-engine':
+        specifier: workspace:*
+        version: link:../orchestration-engine
+      '@forge/org-manager':
+        specifier: workspace:*
+        version: link:../org-manager
+      '@forge/storage':
+        specifier: workspace:*
+        version: link:../storage
+      '@forge/task-engine':
+        specifier: workspace:*
+        version: link:../task-engine
+      '@forge/verification-engine':
+        specifier: workspace:*
+        version: link:../verification-engine
+
   packages/core: {}
+
+  packages/orchestration-engine:
+    dependencies:
+      '@forge/agent-system':
+        specifier: workspace:*
+        version: link:../agent-system
+      '@forge/capability-resolver':
+        specifier: workspace:*
+        version: link:../capability-resolver
+      '@forge/core':
+        specifier: workspace:*
+        version: link:../core
+      '@forge/org-manager':
+        specifier: workspace:*
+        version: link:../org-manager
+      '@forge/provider-router':
+        specifier: workspace:*
+        version: link:../provider-router
+      '@forge/runtime-engine':
+        specifier: workspace:*
+        version: link:../runtime-engine
+      '@forge/skill-engine':
+        specifier: workspace:*
+        version: link:../skill-engine
+      '@forge/storage':
+        specifier: workspace:*
+        version: link:../storage
+      '@forge/task-engine':
+        specifier: workspace:*
+        version: link:../task-engine
+      '@forge/tool-engine':
+        specifier: workspace:*
+        version: link:../tool-engine
+      '@forge/verification-engine':
+        specifier: workspace:*
+        version: link:../verification-engine
+      '@forge/workspace':
+        specifier: workspace:*
+        version: link:../workspace
 
   packages/org-manager:
     dependencies:
@@ -102,6 +162,15 @@ importers:
       '@forge/core':
         specifier: workspace:*
         version: link:../core
+
+  packages/verification-engine:
+    dependencies:
+      '@forge/core':
+        specifier: workspace:*
+        version: link:../core
+      '@forge/tool-engine':
+        specifier: workspace:*
+        version: link:../tool-engine
 
   packages/workspace:
     dependencies:

@@ -7,8 +7,10 @@ import path from "node:path";
 import fs from "node:fs/promises";
 import { execSync } from "node:child_process";
 
+import os from "node:os";
+
 describe("E2E Phase 3: Execution Layer & Workspace Isolation Integration", () => {
-  const testRoot = path.resolve(process.cwd(), ".tmp-e2e-phase3");
+  let testRoot: string;
   const secretKey = "phase3-secret-key-9988";
 
   const policy: SecurityPolicy = {
@@ -25,7 +27,7 @@ describe("E2E Phase 3: Execution Layer & Workspace Isolation Integration", () =>
   let runtimeRouter: RuntimeRouter;
 
   beforeEach(async () => {
-    await fs.mkdir(testRoot, { recursive: true });
+    testRoot = await fs.mkdtemp(path.join(os.tmpdir(), "forge-phase3-test-"));
     execSync("git init -b main", { cwd: testRoot });
     execSync('git config user.name "Phase3 Test" && git config user.email "phase3@test.com"', { cwd: testRoot });
     await fs.writeFile(path.join(testRoot, "package.json"), '{"name": "root-app"}', "utf8");
@@ -42,7 +44,7 @@ describe("E2E Phase 3: Execution Layer & Workspace Isolation Integration", () =>
 
   afterEach(async () => {
     try {
-      await fs.rm(testRoot, { recursive: true, force: true });
+      await fs.rm(testRoot, { recursive: true, force: true, maxRetries: 5, retryDelay: 500 });
     } catch {}
   });
 

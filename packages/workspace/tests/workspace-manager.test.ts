@@ -4,11 +4,13 @@ import path from "node:path";
 import fs from "node:fs/promises";
 import { execSync } from "node:child_process";
 
+import os from "node:os";
+
 describe("WorkspaceManager", () => {
-  const testRepoDir = path.resolve(process.cwd(), ".tmp-test-repo");
+  let testRepoDir: string;
 
   beforeEach(async () => {
-    await fs.mkdir(testRepoDir, { recursive: true });
+    testRepoDir = await fs.mkdtemp(path.join(os.tmpdir(), "forge-ws-test-"));
     execSync("git init -b main", { cwd: testRepoDir });
     execSync('git config user.name "Test" && git config user.email "test@example.com"', { cwd: testRepoDir });
     await fs.writeFile(path.join(testRepoDir, "README.md"), "# Initial", "utf8");
@@ -17,7 +19,7 @@ describe("WorkspaceManager", () => {
 
   afterEach(async () => {
     try {
-      await fs.rm(testRepoDir, { recursive: true, force: true });
+      await fs.rm(testRepoDir, { recursive: true, force: true, maxRetries: 5, retryDelay: 500 });
     } catch {}
   });
 
