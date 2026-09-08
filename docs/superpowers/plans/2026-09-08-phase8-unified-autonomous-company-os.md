@@ -33,13 +33,13 @@
 - Modify: `packages/storage/src/index.ts`
 - Create: `packages/storage/tests/schema-v2-persistence.test.ts`
 
-- [ ] **Step 1: Write failing test for Schema V2 migrations, EventRepository, ApprovalRepository, and ConnectionRepository**
-- [ ] **Step 2: Run test to verify failure**
-- [ ] **Step 3: Implement `schema-v2.ts` with tables: `events`, `connections`, `approvals`, `artifacts`**
-- [ ] **Step 4: Update `migrator.ts` to execute Schema V1 then V2**
-- [ ] **Step 5: Implement `EventRepository`, `ApprovalRepository`, and `ConnectionRepository`**
-- [ ] **Step 6: Run test to verify pass**
-- [ ] **Step 7: Commit task**
+- [x] **Step 1: Write failing test for Schema V2 migrations, EventRepository, ApprovalRepository, and ConnectionRepository**
+- [x] **Step 2: Run test to verify failure**
+- [x] **Step 3: Implement `schema-v2.ts` with tables: `events`, `connections`, `approvals`, `artifacts`**
+- [x] **Step 4: Update `migrator.ts` to execute Schema V1 then V2**
+- [x] **Step 5: Implement `EventRepository`, `ApprovalRepository`, and `ConnectionRepository`**
+- [x] **Step 6: Run test to verify pass**
+- [x] **Step 7: Commit task**
 
 ---
 
@@ -49,11 +49,11 @@
 - Modify: `packages/core/src/events/event-bus.ts`
 - Modify: `packages/core/tests/event-bus.test.ts`
 
-- [ ] **Step 1: Write test for EventBus persistent sink hook**
-- [ ] **Step 2: Run test to verify failure**
-- [ ] **Step 3: Implement persistent storage listener on EventBus**
-- [ ] **Step 4: Run test to verify pass**
-- [ ] **Step 5: Commit task**
+- [x] **Step 1: Write test for EventBus persistent sink hook**
+- [x] **Step 2: Run test to verify failure**
+- [x] **Step 3: Implement persistent storage listener on EventBus**
+- [x] **Step 4: Run test to verify pass**
+- [x] **Step 5: Commit task**
 
 ---
 
@@ -63,18 +63,19 @@
 - Modify: `packages/dashboard/src/server/dashboard-server.ts`
 - Modify: `packages/dashboard/tests/dashboard.test.ts`
 
-- [ ] **Step 1: Write failing tests for live ticket dispatch, board approval state machine, and worktree git diffs**
-- [ ] **Step 2: Run test to verify failure**
-- [ ] **Step 3: Wire `POST /api/tickets` to create real mission, allocate worktree, and emit live SSE**
-- [ ] **Step 4: Wire `POST /api/approvals/:id/approve` and `reject` to `ApprovalRepository` and emit governance events**
-- [ ] **Step 5: Wire `GET /api/diffs` to query real Git diff from active worktree**
-- [ ] **Step 6: Run test to verify pass**
-- [ ] **Step 7: Commit task**
+- [x] **Step 1: Write failing tests for live ticket dispatch, board approval state machine, and worktree git diffs**
+- [x] **Step 2: Run test to verify failure**
+- [x] **Step 3: Wire `POST /api/tickets` to create real mission, allocate worktree, and emit live SSE**
+- [x] **Step 4: Wire `POST /api/approvals/:id/approve` and `reject` to `ApprovalRepository` and emit governance events**
+- [x] **Step 5: Wire `GET /api/diffs` to query real Git diff from active worktree**
+- [x] **Step 6: Run test to verify pass**
+- [x] **Step 7: Commit task**
 
 ---
 
 ### Task 4: Full Monorepo Build & Regression Test Check
 
-- [ ] **Step 1: Run full test suite: `pnpm test`**
-- [ ] **Step 2: Run full build: `pnpm build`**
-- [ ] **Step 3: Final commit for Phase 8**
+- [x] **Step 1: Run full test suite: `pnpm test`**
+- [x] **Step 2: Run full build: `pnpm build`**
+- [x] **Step 3: Final commit for Phase 8**
+
