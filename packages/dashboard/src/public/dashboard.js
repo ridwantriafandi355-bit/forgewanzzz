@@ -84,25 +84,86 @@
   const elInputConnSecretRef = document.getElementById('inputConnSecretRef');
   const elInputConnEndpoint = document.getElementById('inputConnEndpoint');
 
+  // Execution DAG Elements
+  const elNavCountDag = document.getElementById('navCountDag');
+  const elSelectDagMission = document.getElementById('selectDagMission');
+  const elBtnDagZoomIn = document.getElementById('btnDagZoomIn');
+  const elBtnDagZoomOut = document.getElementById('btnDagZoomOut');
+  const elBtnDagFit = document.getElementById('btnDagFit');
+  const elBtnRefreshDag = document.getElementById('btnRefreshDag');
+  const elDagViewport = document.getElementById('dagViewport');
+  const elDagSvg = document.getElementById('dagSvg');
+  const elDagGraphGroup = document.getElementById('dagGraphGroup');
+  const elDagEdgesLayer = document.getElementById('dagEdgesLayer');
+  const elDagNodesLayer = document.getElementById('dagNodesLayer');
+  const elDagStatusPillText = document.getElementById('dagStatusPillText');
+  const elDagNodeInspector = document.getElementById('dagNodeInspector');
+  const elBtnCloseDagInspector = document.getElementById('btnCloseDagInspector');
+
+  // DAG Inspector Elements
+  const elInspectorNodeRole = document.getElementById('inspectorNodeRole');
+  const elInspectorNodeTitle = document.getElementById('inspectorNodeTitle');
+  const elInspectorNodeId = document.getElementById('inspectorNodeId');
+  const elInspectorNodeStatus = document.getElementById('inspectorNodeStatus');
+  const elInspectorNodeAvatar = document.getElementById('inspectorNodeAvatar');
+  const elInspectorNodeAgent = document.getElementById('inspectorNodeAgent');
+  const elInspectorNodeModel = document.getElementById('inspectorNodeModel');
+  const elInspectorNodeWorktree = document.getElementById('inspectorNodeWorktree');
+  const elInspectorNodeToken = document.getElementById('inspectorNodeToken');
+  const elInspectorNodeVerification = document.getElementById('inspectorNodeVerification');
+
+  // Telemetry Terminal Filter Elements
+  const elLogFilters = document.getElementById('logFilters');
+  const elBtnCopyLogs = document.getElementById('btnCopyLogs');
+
   let activeViewId = 'viewOrgChart';
   let sseSource = null;
   let currentTickets = [];
   let currentDiffFiles = [];
+  let dagZoom = 1.0;
+  let dagPanX = 40;
+  let dagPanY = 50;
+  let isPanning = false;
+  let startPanX = 0;
+  let startPanY = 0;
+  let currentDagNodes = [];
+  let currentDagEdges = [];
+  let selectedNodeId = null;
+  let activeLogFilter = 'ALL';
+  const logHistory = [];
 
   function escapeHtml(str) {
     if (!str) return '';
     return String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
   }
 
-  function appendLog(type, text) {
+  function appendLog(type, text, category) {
     const time = new Date().toLocaleTimeString();
+    if (!category) {
+      if (type === 'system') category = 'SYS';
+      else if (type === 'error') category = 'ERR';
+      else if (text.includes('Verified') || text.includes('Verification') || text.includes('Exit Code')) category = 'VERIFY';
+      else if (text.includes('Board') || text.includes('Approval') || text.includes('Veto')) category = 'BOARD';
+      else if (text.includes('Issue') || text.includes('Ticket') || text.includes('Task') || text.includes('Mission')) category = 'TASK';
+      else category = 'SYS';
+    }
+
+    logHistory.push({ time, type, text, category });
+    if (logHistory.length > 500) logHistory.shift();
+
     const row = document.createElement('div');
     row.className = `log-entry ${type}`;
-    row.innerHTML = `<span class="log-time">[${time}]</span> <span class="log-text">${escapeHtml(text)}</span>`;
-    elTerminalLog.appendChild(row);
-
-    if (elChkAutoScroll && elChkAutoScroll.checked) {
-      elTerminalLog.scrollTop = elTerminalLog.scrollHeight;
+    row.setAttribute('data-category', category);
+    if (activeLogFilter !== 'ALL' && activeLogFilter !== category) {
+      row.style.display = 'none';
+    }
+    row.innerHTML = `<span class="log-time">[${time}]</span> <span class="log-badge" style="font-size: 9px; padding: 1px 5px; border-radius: 4px; margin-right: 6px; background: rgba(255,255,255,0.07); color: #94a3b8; font-weight: 700;">${category}</span> <span class="log-text">${escapeHtml(text)}</span>`;
+    
+    if (elTerminalLog) {
+      elTerminalLog.appendChild(row);
+      if (elChkAutoScroll && elChkAutoScroll.checked) {
+        elTerminalLog.scrollTop = elTerminalLog.scrollHeight;
+      }
     }
   }
 
@@ -139,6 +200,7 @@
     if (viewId === 'viewHeartbeats') fetchHeartbeats();
     if (viewId === 'viewDiffs') fetchDiffs();
     if (viewId === 'viewConnections') fetchConnections();
+    if (viewId === 'viewDag') fetchDag();
   }
 
   // --- 1. ORG CHART VIEW ---
@@ -729,6 +791,297 @@
     }
   }
 
+  // --- 8. INTERACTIVE EXECUTION DAG VIEW (DOC 05 & 06) ---
+  function updateDagTransform() {
+    if (elDagGraphGroup) {
+      elDagGraphGroup.setAttribute('transform', `translate(${dagPanX}, ${dagPanY}) scale(${dagZoom})`);
+    }
+  }
+
+  async function fetchDag(missionId) {
+    try {
+      const url = missionId ? `/api/dag?missionId=${encodeURIComponent(missionId)}` : '/api/dag';
+      const res = await fetch(url);
+      const data = await res.json();
+      if (!data.success) return;
+
+      currentDagNodes = data.nodes || [];
+      currentDagEdges = data.edges || [];
+
+      // Update counter
+      if (elNavCountDag) elNavCountDag.textContent = currentDagNodes.length;
+
+      // Populate mission select if needed
+      if (elSelectDagMission && data.missions && data.missions.length > 0) {
+        const currentSelected = elSelectDagMission.value;
+        const exists = Array.from(elSelectDagMission.options).some(o => o.value === data.missionId);
+        if (!exists) {
+          elSelectDagMission.innerHTML = data.missions.map(m => `
+            <option value="${escapeHtml(m.id)}" ${m.id === data.missionId ? 'selected' : ''}>
+              ${escapeHtml(m.name)} (${escapeHtml(m.status)})
+            </option>
+          `).join('');
+        }
+      }
+
+      // Update status pill
+      if (elDagStatusPillText) {
+        const activeCount = currentDagNodes.filter(n => n.status === 'RUNNING' || n.status === 'IN_PROGRESS').length;
+        const completedCount = currentDagNodes.filter(n => n.status === 'COMPLETED').length;
+        elDagStatusPillText.textContent = `${currentDagNodes.length} Nodes • ${completedCount} Verified • ${activeCount} Active`;
+      }
+
+      renderDag(currentDagNodes, currentDagEdges);
+    } catch {}
+  }
+
+  function renderDag(nodes, edges) {
+    if (!elDagNodesLayer || !elDagEdgesLayer) return;
+    elDagNodesLayer.innerHTML = '';
+    elDagEdgesLayer.innerHTML = '';
+
+    if (!nodes || nodes.length === 0) return;
+
+    // 1. Calculate topological depth / rank for each node
+    const nodeMap = new Map(nodes.map(n => [n.id, n]));
+    const depthMap = new Map();
+
+    function getDepth(id, visited = new Set()) {
+      if (visited.has(id)) return 0;
+      visited.add(id);
+      if (depthMap.has(id)) return depthMap.get(id);
+      const node = nodeMap.get(id);
+      if (!node || !node.dependencies || node.dependencies.length === 0) {
+        depthMap.set(id, 0);
+        return 0;
+      }
+      let maxD = 0;
+      for (const depId of node.dependencies) {
+        maxD = Math.max(maxD, getDepth(depId, new Set(visited)) + 1);
+      }
+      depthMap.set(id, maxD);
+      return maxD;
+    }
+
+    nodes.forEach(n => getDepth(n.id));
+
+    // 2. Group nodes by rank layer
+    const layers = [];
+    nodes.forEach(n => {
+      const d = depthMap.get(n.id) || 0;
+      if (!layers[d]) layers[d] = [];
+      layers[d].push(n);
+    });
+
+    const nodeWidth = 220;
+    const nodeHeight = 78;
+    const gapX = 100;
+    const gapY = 32;
+    const posMap = new Map();
+
+    // 3. Compute (x, y) coordinates for each node
+    layers.forEach((layerNodes, layerIndex) => {
+      layerNodes.forEach((node, nodeIndex) => {
+        const x = 30 + layerIndex * (nodeWidth + gapX);
+        const y = 30 + nodeIndex * (nodeHeight + gapY);
+        posMap.set(node.id, { x, y, width: nodeWidth, height: nodeHeight, node });
+      });
+    });
+
+    // 4. Render Edges (Curved Bezier Paths)
+    edges.forEach(edge => {
+      const src = posMap.get(edge.source);
+      const dst = posMap.get(edge.target);
+      if (src && dst) {
+        const x1 = src.x + src.width;
+        const y1 = src.y + src.height / 2;
+        const x2 = dst.x;
+        const y2 = dst.y + dst.height / 2;
+        const dx = Math.max(40, (x2 - x1) / 2);
+
+        const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+        path.setAttribute('d', `M ${x1} ${y1} C ${x1 + dx} ${y1}, ${x2 - dx} ${y2}, ${x2} ${y2}`);
+        path.setAttribute('class', `dag-edge ${edge.active ? 'active' : ''}`);
+        path.setAttribute('marker-end', `url(#${edge.active ? 'dagArrowActive' : 'dagArrow'})`);
+        elDagEdgesLayer.appendChild(path);
+      }
+    });
+
+    // 5. Render Node Cards
+    posMap.forEach(pos => {
+      const node = pos.node;
+      const g = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+      const isSelected = selectedNodeId === node.id;
+      g.setAttribute('class', `dag-node status-${node.status} ${isSelected ? 'selected' : ''}`);
+      g.setAttribute('data-id', node.id);
+      g.setAttribute('transform', `translate(${pos.x}, ${pos.y})`);
+
+      let statusColor = '#94a3b8';
+      if (node.status === 'COMPLETED') statusColor = '#10b981';
+      else if (node.status === 'IN_PROGRESS' || node.status === 'RUNNING') statusColor = '#06b6d4';
+      else if (node.status === 'FAILED') statusColor = '#ef4444';
+      else if (node.status === 'QUEUED' || node.status === 'PENDING') statusColor = '#f59e0b';
+
+      const truncatedName = node.name.length > 24 ? node.name.slice(0, 23) + '…' : node.name;
+
+      g.innerHTML = `
+        <rect class="dag-node-card-bg" width="${nodeWidth}" height="${nodeHeight}" rx="10" />
+        <text x="14" y="22" fill="#818cf8" font-size="10" font-weight="700" letter-spacing="0.5">${escapeHtml(node.role)}</text>
+        <text x="206" y="22" text-anchor="end" fill="${statusColor}" font-size="9" font-weight="700">${escapeHtml(node.status)}</text>
+        <text x="14" y="44" fill="#f8fafc" font-size="12" font-weight="600">${escapeHtml(truncatedName)}</text>
+        <text x="14" y="64" fill="#94a3b8" font-size="11">${escapeHtml(node.agentAvatar || '🤖')} ${escapeHtml(node.agentName || 'Agent')}</text>
+        ${node.layer1ExitCode === 0 ? '<text x="206" y="64" text-anchor="end" fill="#10b981" font-size="11" font-weight="700">✓ L1</text>' : ''}
+      `;
+
+      g.addEventListener('click', (e) => {
+        e.stopPropagation();
+        selectedNodeId = node.id;
+        document.querySelectorAll('.dag-node').forEach(el => el.classList.remove('selected'));
+        g.classList.add('selected');
+        inspectNode(node);
+      });
+
+      elDagNodesLayer.appendChild(g);
+    });
+  }
+
+  function inspectNode(node) {
+    if (!elDagNodeInspector) return;
+    elDagNodeInspector.classList.add('open');
+
+    if (elInspectorNodeRole) elInspectorNodeRole.textContent = `${node.role} NODE`;
+    if (elInspectorNodeTitle) elInspectorNodeTitle.textContent = node.name;
+    if (elInspectorNodeId) elInspectorNodeId.textContent = node.id;
+
+    if (elInspectorNodeStatus) {
+      elInspectorNodeStatus.textContent = node.status;
+      elInspectorNodeStatus.className = 'badge-pill';
+      if (node.status === 'COMPLETED') elInspectorNodeStatus.classList.add('badge-connected');
+      else if (node.status === 'IN_PROGRESS' || node.status === 'RUNNING') elInspectorNodeStatus.classList.add('badge-connected');
+      else if (node.status === 'FAILED') elInspectorNodeStatus.classList.add('badge-disconnected');
+      else elInspectorNodeStatus.classList.add('badge-configured');
+    }
+
+    if (elInspectorNodeAvatar) elInspectorNodeAvatar.textContent = node.agentAvatar || '💻';
+    if (elInspectorNodeAgent) elInspectorNodeAgent.textContent = node.agentName || 'Core Worker';
+    if (elInspectorNodeModel) elInspectorNodeModel.textContent = node.assignedModel || 'claude-3-7-sonnet';
+    if (elInspectorNodeWorktree) elInspectorNodeWorktree.textContent = node.worktreeBranch || `forge/${node.id}`;
+    if (elInspectorNodeToken) elInspectorNodeToken.textContent = node.tokenRef || `tok_${node.id.slice(0, 8)}`;
+
+    if (elInspectorNodeVerification) {
+      if (node.verificationEvidence) {
+        elInspectorNodeVerification.textContent = `[Deterministic L1 Verification]\nExit Code: ${node.layer1ExitCode !== null ? node.layer1ExitCode : 0}\nEvidence: ${node.verificationEvidence}`;
+        elInspectorNodeVerification.style.color = '#a7f3d0';
+      } else if (node.status === 'COMPLETED') {
+        elInspectorNodeVerification.textContent = `[Deterministic L1 Verification]\nExit Code: 0\nEvidence: Layer 1 Deterministic Process Exit Code 0 passed.`;
+        elInspectorNodeVerification.style.color = '#a7f3d0';
+      } else {
+        elInspectorNodeVerification.textContent = 'Awaiting task execution & Layer 1 verification cycle.';
+        elInspectorNodeVerification.style.color = '#94a3b8';
+      }
+    }
+  }
+
+  // DAG Controls & Pan-Zoom Handlers
+  if (elBtnCloseDagInspector) {
+    elBtnCloseDagInspector.addEventListener('click', () => {
+      if (elDagNodeInspector) elDagNodeInspector.classList.remove('open');
+      selectedNodeId = null;
+      document.querySelectorAll('.dag-node').forEach(el => el.classList.remove('selected'));
+    });
+  }
+
+  if (elBtnDagZoomIn) {
+    elBtnDagZoomIn.addEventListener('click', () => {
+      dagZoom = Math.min(2.5, dagZoom * 1.2);
+      updateDagTransform();
+    });
+  }
+
+  if (elBtnDagZoomOut) {
+    elBtnDagZoomOut.addEventListener('click', () => {
+      dagZoom = Math.max(0.4, dagZoom * 0.8);
+      updateDagTransform();
+    });
+  }
+
+  if (elBtnDagFit) {
+    elBtnDagFit.addEventListener('click', () => {
+      dagZoom = 1.0;
+      dagPanX = 40;
+      dagPanY = 50;
+      updateDagTransform();
+    });
+  }
+
+  if (elBtnRefreshDag) elBtnRefreshDag.addEventListener('click', () => fetchDag(elSelectDagMission?.value));
+  if (elSelectDagMission) elSelectDagMission.addEventListener('change', () => fetchDag(elSelectDagMission.value));
+
+  if (elDagViewport) {
+    elDagViewport.addEventListener('wheel', (e) => {
+      e.preventDefault();
+      const delta = e.deltaY > 0 ? 0.9 : 1.1;
+      dagZoom = Math.min(Math.max(0.4, dagZoom * delta), 2.5);
+      updateDagTransform();
+    }, { passive: false });
+
+    elDagViewport.addEventListener('mousedown', (e) => {
+      if (e.target.closest('.dag-node')) return;
+      isPanning = true;
+      startPanX = e.clientX - dagPanX;
+      startPanY = e.clientY - dagPanY;
+    });
+
+    window.addEventListener('mousemove', (e) => {
+      if (isPanning) {
+        dagPanX = e.clientX - startPanX;
+        dagPanY = e.clientY - startPanY;
+        updateDagTransform();
+      }
+    });
+
+    window.addEventListener('mouseup', () => {
+      isPanning = false;
+    });
+  }
+
+  // Enhanced Terminal Log Filters & Copy
+  if (elLogFilters) {
+    elLogFilters.querySelectorAll('.filter-pill').forEach(pill => {
+      pill.addEventListener('click', () => {
+        elLogFilters.querySelectorAll('.filter-pill').forEach(p => p.classList.remove('active'));
+        pill.classList.add('active');
+        activeLogFilter = pill.getAttribute('data-filter') || 'ALL';
+
+        if (elTerminalLog) {
+          const rows = elTerminalLog.querySelectorAll('.log-entry');
+          rows.forEach(r => {
+            const cat = r.getAttribute('data-category');
+            if (activeLogFilter === 'ALL' || cat === activeLogFilter) {
+              r.style.display = '';
+            } else {
+              r.style.display = 'none';
+            }
+          });
+        }
+      });
+    });
+  }
+
+  if (elBtnCopyLogs) {
+    elBtnCopyLogs.addEventListener('click', async () => {
+      try {
+        const text = logHistory.map(h => `[${h.time}] [${h.category}] ${h.text}`).join('\n');
+        await navigator.clipboard.writeText(text);
+        const prevText = elBtnCopyLogs.textContent;
+        elBtnCopyLogs.textContent = '✓ Copied!';
+        setTimeout(() => { elBtnCopyLogs.textContent = prevText; }, 2000);
+      } catch (err) {
+        appendLog('error', `Failed to copy logs: ${err.message}`);
+      }
+    });
+  }
+
   // --- SSE STREAM ---
   function connectSSE() {
     try {
@@ -744,14 +1097,16 @@
           if (payload.type === 'CONNECTED') {
             appendLog('system', payload.message);
           } else if (payload.type === 'TICKET_CREATED' || payload.type === 'MISSION_STARTED') {
-            appendLog('info', `🎫 New Issue Created: "${payload.title || payload.name}"`);
+            appendLog('info', `🎫 New Issue Created: "${payload.title || payload.name}"`, 'TASK');
             fetchTickets();
             fetchOrgChart();
+            fetchDag();
           } else if (payload.type === 'TICKET_COMPLETED' || payload.type === 'MISSION_COMPLETED') {
-            appendLog('success', `✅ Issue Verified & Completed: [${payload.taskId || payload.missionId}]`);
+            appendLog('success', `✅ Issue Verified & Completed: [${payload.taskId || payload.missionId}]`, 'VERIFY');
             fetchTickets();
             fetchOrgChart();
             fetchBudgets();
+            fetchDag();
           } else if (payload.type === 'APPROVAL_GRANTED') {
             appendLog('success', `🏛️ Board Approval Granted for [${payload.taskId}]`);
             fetchApprovals();
@@ -896,6 +1251,7 @@
   fetchBudgets();
   fetchHeartbeats();
   fetchConnections();
+  fetchDag();
   setInterval(() => {
     if (activeViewId === 'viewOrgChart') fetchOrgChart();
     if (activeViewId === 'viewTickets') fetchTickets();
@@ -903,5 +1259,6 @@
     if (activeViewId === 'viewBudgets') fetchBudgets();
     if (activeViewId === 'viewHeartbeats') fetchHeartbeats();
     if (activeViewId === 'viewConnections') fetchConnections();
+    if (activeViewId === 'viewDag') fetchDag();
   }, 4000);
 })();

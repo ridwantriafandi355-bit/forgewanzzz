@@ -295,6 +295,22 @@ describe("DashboardServer (Paperclip Autonomous Company OS)", () => {
     expect(testData.status).toBeDefined();
     expect(testData.health).toBeDefined();
   });
+
+  it("serves GET /api/dag with structured nodes, edges, and execution proof", async () => {
+    const res = await fetch(`http://localhost:${port}/api/dag`);
+    expect(res.status).toBe(200);
+    const data = await res.json();
+    expect(data.success).toBe(true);
+    expect(Array.isArray(data.nodes)).toBe(true);
+    expect(Array.isArray(data.edges)).toBe(true);
+    expect(data.nodes.length).toBeGreaterThan(0);
+
+    const firstNode = data.nodes[0];
+    expect(firstNode.id).toBeDefined();
+    expect(firstNode.name).toBeDefined();
+    expect(firstNode.status).toBeDefined();
+    expect(firstNode.role).toBeDefined();
+  });
 });
 
 

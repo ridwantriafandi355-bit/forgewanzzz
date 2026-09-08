@@ -44,6 +44,12 @@
           <span class="nav-counter" id="navCountTickets">0</span>
         </button>
 
+        <button class="nav-item" data-view="viewDag" id="navDag">
+          <span class="nav-icon">🔀</span>
+          <span class="nav-label">Execution DAG</span>
+          <span class="nav-counter" id="navCountDag">0</span>
+        </button>
+
         <button class="nav-item" data-view="viewApprovals" id="navApprovals">
           <span class="nav-icon">🛡️</span>
           <span class="nav-label">Board Approvals</span>
@@ -338,6 +344,112 @@
         </section>
 
         <!-- ============================================== -->
+        <!-- VIEW: INTERACTIVE EXECUTION DAG (DOC 05 & 06)   -->
+        <!-- ============================================== -->
+        <section class="view-panel" id="viewDag">
+          <div class="view-header">
+            <div>
+              <h2 class="view-title">Autonomous Execution DAG</h2>
+              <p class="view-subtitle">Interactive dependency graph, real-time node state machine & deterministic execution proof</p>
+            </div>
+            <div class="header-tools">
+              <div class="mission-select-wrap">
+                <label for="selectDagMission" class="control-label">Pipeline:</label>
+                <select id="selectDagMission" class="form-select form-select-sm">
+                  <option value="">Latest Active Pipeline</option>
+                </select>
+              </div>
+              <div class="dag-zoom-controls">
+                <button id="btnDagZoomIn" class="btn btn-secondary btn-sm" title="Zoom In">+</button>
+                <button id="btnDagZoomOut" class="btn btn-secondary btn-sm" title="Zoom Out">&minus;</button>
+                <button id="btnDagFit" class="btn btn-secondary btn-sm" title="Fit to View">Fit</button>
+              </div>
+              <button id="btnRefreshDag" class="btn btn-secondary btn-sm">Refresh DAG</button>
+            </div>
+          </div>
+
+          <div class="dag-wrapper" id="dagWrapper">
+            <div class="dag-viewport" id="dagViewport">
+              <svg id="dagSvg" class="dag-svg" width="100%" height="100%">
+                <defs>
+                  <marker id="dagArrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+                    <path d="M 0 1 L 10 5 L 0 9 z" fill="#6366f1" />
+                  </marker>
+                  <marker id="dagArrowActive" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+                    <path d="M 0 1 L 10 5 L 0 9 z" fill="#06b6d4" />
+                  </marker>
+                  <filter id="dagNodeGlow" x="-20%" y="-20%" width="140%" height="140%">
+                    <feGaussianBlur stdDeviation="5" result="blur" />
+                    <feComposite in="SourceGraphic" in2="blur" operator="over" />
+                  </filter>
+                  <linearGradient id="dagEdgeGrad" x1="0%" y1="0%" x2="100%" y2="0%">
+                    <stop offset="0%" stop-color="#6366f1" stop-opacity="0.6"/>
+                    <stop offset="100%" stop-color="#8b5cf6" stop-opacity="0.9"/>
+                  </linearGradient>
+                  <linearGradient id="dagEdgeGradActive" x1="0%" y1="0%" x2="100%" y2="0%">
+                    <stop offset="0%" stop-color="#06b6d4" stop-opacity="0.9"/>
+                    <stop offset="100%" stop-color="#10b981" stop-opacity="1"/>
+                  </linearGradient>
+                </defs>
+                <g id="dagGraphGroup" transform="translate(40, 50) scale(1)">
+                  <g id="dagEdgesLayer"></g>
+                  <g id="dagNodesLayer"></g>
+                </g>
+              </svg>
+              <div class="dag-status-pill" id="dagStatusPill">
+                <span class="dag-pulse-dot"></span>
+                <span id="dagStatusPillText">3 Nodes &bull; Live Telemetry</span>
+              </div>
+            </div>
+
+            <!-- SLIDEOUT INSPECTOR DRAWER -->
+            <div class="dag-inspector-drawer" id="dagNodeInspector">
+              <div class="inspector-header">
+                <div>
+                  <div class="inspector-category" id="inspectorNodeRole">TASK NODE</div>
+                  <h3 class="inspector-title" id="inspectorNodeTitle">Select a node</h3>
+                </div>
+                <button class="inspector-close" id="btnCloseDagInspector">&times;</button>
+              </div>
+              <div class="inspector-body">
+                <div class="inspector-field">
+                  <span class="inspector-label">Task Identifier</span>
+                  <span class="inspector-value mono" id="inspectorNodeId">-</span>
+                </div>
+                <div class="inspector-field">
+                  <span class="inspector-label">Execution Status</span>
+                  <span class="badge-pill" id="inspectorNodeStatus">-</span>
+                </div>
+                <div class="inspector-field">
+                  <span class="inspector-label">Assigned Workforce Agent</span>
+                  <div class="inspector-agent-row">
+                    <span id="inspectorNodeAvatar" class="inspector-avatar">💻</span>
+                    <div>
+                      <div id="inspectorNodeAgent" class="inspector-agent-name">-</div>
+                      <div id="inspectorNodeModel" class="inspector-model-name">-</div>
+                    </div>
+                  </div>
+                </div>
+                <div class="inspector-field">
+                  <span class="inspector-label">Isolated Git Worktree Branch</span>
+                  <span class="inspector-value mono" id="inspectorNodeWorktree">-</span>
+                </div>
+                <div class="inspector-field">
+                  <span class="inspector-label">Scoped Execution Token (Doc 11)</span>
+                  <span class="inspector-value mono" id="inspectorNodeToken">-</span>
+                </div>
+                <div class="inspector-field">
+                  <span class="inspector-label">Layer 1 Deterministic Proof</span>
+                  <div class="inspector-proof-box" id="inspectorNodeVerification">
+                    Awaiting verification cycle
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- ============================================== -->
         <!-- VIEW 7: AUDIT EVENT STREAM                     -->
         <!-- ============================================== -->
         <section class="view-panel" id="viewAudit">
@@ -347,16 +459,25 @@
               <p class="view-subtitle">Deterministic EventBus telemetry, tool calls, and state transitions</p>
             </div>
             <div class="header-tools">
+              <div class="log-filters" id="logFilters">
+                <button class="filter-pill active" data-filter="ALL">All</button>
+                <button class="filter-pill" data-filter="SYS">System</button>
+                <button class="filter-pill" data-filter="TASK">Tasks</button>
+                <button class="filter-pill" data-filter="VERIFY">Verification</button>
+                <button class="filter-pill" data-filter="BOARD">Governance</button>
+                <button class="filter-pill" data-filter="ERR">Errors</button>
+              </div>
               <label class="toggle-wrap">
                 <input type="checkbox" id="chkAutoScroll" checked>
                 <span>Auto-scroll</span>
               </label>
+              <button id="btnCopyLogs" class="btn btn-secondary btn-sm" title="Copy visible logs">📋 Copy Logs</button>
               <button id="btnClearLogs" class="btn btn-secondary btn-sm">Clear</button>
             </div>
           </div>
 
           <div class="terminal-container" id="terminalLog">
-            <div class="log-entry system">
+            <div class="log-entry system" data-category="SYS">
               <span class="log-time">[SYSTEM]</span>
               <span class="log-text">FORGE WANZZ Paperclip OS Initialized. EventStream Active.</span>
             </div>
