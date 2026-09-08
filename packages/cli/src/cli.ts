@@ -7,6 +7,7 @@ import { discoveryCommand } from "./commands/discovery.js";
 import { connectionsCommand } from "./commands/connections.js";
 import { resumeCommand } from "./commands/resume.js";
 import { dlqCommand } from "./commands/dlq.js";
+import { memoryCommand } from "./commands/memory.js";
 
 export async function runCli(argv: string[]): Promise<void> {
   const args = argv.slice(2);
@@ -73,6 +74,32 @@ export async function runCli(argv: string[]): Promise<void> {
       break;
     }
 
+    case "memory": {
+      const sub = (args[1] === "search" || args[1] === "store") ? args[1] : "list";
+      let query: string | undefined;
+      let content: string | undefined;
+      let scopeId: string | undefined;
+
+      const queryIdx = args.indexOf("--query");
+      if (queryIdx !== -1 && args[queryIdx + 1]) query = args[queryIdx + 1];
+      else if (sub === "search" && args[2] && !args[2].startsWith("--")) query = args[2];
+
+      const contentIdx = args.indexOf("--content");
+      if (contentIdx !== -1 && args[contentIdx + 1]) content = args[contentIdx + 1];
+
+      const scopeIdx = args.indexOf("--scope");
+      if (scopeIdx !== -1 && args[scopeIdx + 1]) scopeId = args[scopeIdx + 1];
+
+      await memoryCommand({
+        subcommand: sub,
+        query,
+        content,
+        scopeId,
+        json: isJson,
+      });
+      break;
+    }
+
     case "verify": {
       const taskId = args[1];
       if (!taskId) {
@@ -91,7 +118,7 @@ export async function runCli(argv: string[]): Promise<void> {
     }
 
     default:
-      console.log("Usage: forge <init|run|status|verify|discovery|connections|resume|dlq|ui>");
+      console.log("Usage: forge <init|run|status|verify|discovery|connections|resume|dlq|memory|ui>");
       break;
   }
 }

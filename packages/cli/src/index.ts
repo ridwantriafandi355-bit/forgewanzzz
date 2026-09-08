@@ -7,4 +7,5 @@ export * from "./commands/discovery.js";
 export * from "./commands/connections.js";
 export * from "./commands/resume.js";
 export * from "./commands/dlq.js";
+export * from "./commands/memory.js";
 export * from "./cli.js";

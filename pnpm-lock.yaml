@@ -23,6 +23,9 @@ importers:
       '@forge/core':
         specifier: workspace:*
         version: link:../core
+      '@forge/memory':
+        specifier: workspace:*
+        version: link:../memory
       '@forge/org-manager':
         specifier: workspace:*
         version: link:../org-manager
@@ -32,6 +35,9 @@ importers:
       '@forge/skill-engine':
         specifier: workspace:*
         version: link:../skill-engine
+      '@forge/storage':
+        specifier: workspace:*
+        version: link:../storage
 
   packages/auth-connections:
     dependencies:
@@ -59,6 +65,9 @@ importers:
       '@forge/dashboard':
         specifier: workspace:*
         version: link:../dashboard
+      '@forge/memory':
+        specifier: workspace:*
+        version: link:../memory
       '@forge/orchestration-engine':
         specifier: workspace:*
         version: link:../orchestration-engine
@@ -88,6 +97,9 @@ importers:
       '@forge/core':
         specifier: workspace:*
         version: link:../core
+      '@forge/memory':
+        specifier: workspace:*
+        version: link:../memory
       '@forge/orchestration-engine':
         specifier: workspace:*
         version: link:../orchestration-engine
@@ -103,6 +115,15 @@ importers:
       '@forge/verification-engine':
         specifier: workspace:*
         version: link:../verification-engine
+
+  packages/memory:
+    dependencies:
+      '@forge/core':
+        specifier: workspace:*
+        version: link:../core
+      '@forge/storage':
+        specifier: workspace:*
+        version: link:../storage
 
   packages/orchestration-engine:
     dependencies:

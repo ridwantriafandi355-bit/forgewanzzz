@@ -5,7 +5,7 @@ import { fileURLToPath } from "node:url";
 import { randomUUID } from "node:crypto";
 import { exec } from "node:child_process";
 import { promisify } from "node:util";
-import { ForgeDatabase, ApprovalRepository, EventRepository, ConnectionRepository, StoredConnection } from "@forge/storage";
+import { ForgeDatabase, ApprovalRepository, EventRepository, ConnectionRepository, StoredConnection, MemoryRepository } from "@forge/storage";
 import { EventBus } from "@forge/core";
 import { TaskEngineService } from "@forge/task-engine";
 import { OrchestratorService, MissionSpec } from "@forge/orchestration-engine";
@@ -25,6 +25,7 @@ export interface DashboardServerOptions {
   approvalRepo?: ApprovalRepository;
   eventRepo?: EventRepository;
   connectionRepo?: ConnectionRepository;
+  memoryRepo?: MemoryRepository;
   publicDir?: string;
   workspaceRoot?: string;
 }
@@ -63,12 +64,14 @@ export class DashboardServer {
   private approvalRepo: ApprovalRepository;
   private eventRepo: EventRepository;
   private connectionRepo: ConnectionRepository;
+  private memoryRepo: MemoryRepository;
 
   constructor(options: DashboardServerOptions) {
     this.options = options;
     this.approvalRepo = options.approvalRepo || new ApprovalRepository(options.db);
     this.eventRepo = options.eventRepo || new EventRepository(options.db);
     this.connectionRepo = options.connectionRepo || new ConnectionRepository(options.db);
+    this.memoryRepo = options.memoryRepo || new MemoryRepository(options.db);
     this.seedDefaultConnections();
   }
 
@@ -1271,6 +1274,76 @@ export class DashboardServer {
 
       res.writeHead(200, { "Content-Type": "application/json" });
       res.end(JSON.stringify({ success: true, connectionId: conn.id, status: newStatus, health: conn.health }));
+      return;
+    }
+
+    // ==========================================
+    // 9.2 DUAL-LAYER MEMORY & CONTEXT API (DOC 12)
+    // ==========================================
+    if (pathname === "/api/memory" && method === "GET") {
+      const scopeType = url.searchParams.get("scopeType") || "PROJECT";
+      const scopeId = url.searchParams.get("scopeId");
+      let items: any[] = [];
+      if (scopeId) {
+        items = this.memoryRepo.listByScope(scopeType as any, scopeId);
+      } else {
+        const rawDb = this.options.db.getRawDb();
+        try {
+          items = rawDb.prepare("SELECT * FROM memory_records ORDER BY created_at DESC LIMIT 50").all().map((r: any) => ({
+            id: r.id,
+            scopeType: r.scope_type,
+            scopeId: r.scope_id,
+            category: r.category,
+            title: r.title,
+            content: r.content,
+            tags: r.tags ? JSON.parse(r.tags) : [],
+            tokenCount: r.token_count,
+            accessCount: r.access_count,
+            createdAt: r.created_at,
+          }));
+        } catch {}
+      }
+
+      res.writeHead(200, { "Content-Type": "application/json" });
+      res.end(JSON.stringify({ success: true, items, count: items.length }));
+      return;
+    }
+
+    if (pathname === "/api/memory/search" && method === "POST") {
+      const body = await this.readBody(req);
+      const query = body.query || "";
+      const results = this.memoryRepo.search({
+        query,
+        scopeType: body.scopeType,
+        scopeId: body.scopeId,
+        category: body.category,
+        limit: body.limit || 20,
+      });
+
+      res.writeHead(200, { "Content-Type": "application/json" });
+      res.end(JSON.stringify({ success: true, items: results, count: results.length, query }));
+      return;
+    }
+
+    if (pathname === "/api/memory" && method === "POST") {
+      const body = await this.readBody(req);
+      const record = this.memoryRepo.store({
+        scopeType: body.scopeType || "PROJECT",
+        scopeId: body.scopeId || "default",
+        category: body.category || "LEARNING",
+        title: body.title,
+        content: body.content,
+        tags: body.tags || [],
+      });
+
+      this.broadcastEvent({
+        type: "MEMORY_STORED",
+        memory: record,
+        timestamp: new Date().toISOString(),
+      });
+
+      res.writeHead(200, { "Content-Type": "application/json" });
+      res.end(JSON.stringify({ success: true, memory: record }));
       return;
     }
 

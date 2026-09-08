@@ -1121,6 +1121,9 @@
             fetchTickets();
           } else if (payload.type === 'CONNECTION_REGISTERED' || payload.type === 'CONNECTION_HEALTH_UPDATED') {
             fetchConnections();
+          } else if (payload.type === 'MEMORY_STORED') {
+            appendLog('info', `🧠 New Memory Ingested into Vault: [${payload.memory?.category || 'MEMORY'}] ${payload.memory?.title || ''}`, 'SYS');
+            fetchMemory();
           }
         } catch {}
       };
@@ -1243,6 +1246,77 @@
     });
   }
 
+  // --- MEMORY & CONTEXT VAULT (DOC 12) ---
+  const elMemoryGrid = document.getElementById('memoryGrid');
+  const elInputMemorySearch = document.getElementById('inputMemorySearch');
+  const elBtnSearchMemory = document.getElementById('btnSearchMemory');
+  const elBtnRefreshMemory = document.getElementById('btnRefreshMemory');
+  const elNavCountMemory = document.getElementById('navCountMemory');
+
+  async function fetchMemory(query) {
+    try {
+      let res;
+      if (query && query.trim()) {
+        res = await fetch('/api/memory/search', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ query: query.trim() }),
+        });
+      } else {
+        res = await fetch('/api/memory');
+      }
+      const data = await res.json();
+      if (!data.success) return;
+
+      const items = data.items || [];
+      if (elNavCountMemory) elNavCountMemory.textContent = items.length;
+      renderMemory(items);
+    } catch {}
+  }
+
+  function renderMemory(items) {
+    if (!elMemoryGrid) return;
+    elMemoryGrid.innerHTML = '';
+
+    if (!items || items.length === 0) {
+      elMemoryGrid.innerHTML = '<div class="empty-state" style="grid-column: 1 / -1; text-align: center; padding: 40px; color: var(--text-muted);">No memory entries found in vault.</div>';
+      return;
+    }
+
+    items.forEach((m) => {
+      const card = document.createElement('div');
+      card.className = 'memory-card';
+      const catClass = m.category === 'ERROR_SOLUTION' ? 'badge-warn' : (m.category === 'LEARNING' ? 'badge-success' : 'badge-primary');
+      const tagsHtml = (m.tags || []).map((t) => `<span class="tag-pill">${escapeHtml(t)}</span>`).join('');
+
+      card.innerHTML = `
+        <div class="memory-card-header">
+          <div>
+            <span class="badge-pill ${catClass}">${escapeHtml(m.category)}</span>
+            <span class="scope-pill">${escapeHtml(m.scopeType)}:${escapeHtml(m.scopeId)}</span>
+          </div>
+          <span class="memory-tokens">${m.tokenCount || 0} tokens</span>
+        </div>
+        <h4 class="memory-title">${escapeHtml(m.title || 'Untitled Memory')}</h4>
+        <div class="memory-content">${escapeHtml(m.content)}</div>
+        ${tagsHtml ? `<div class="memory-tags">${tagsHtml}</div>` : ''}
+        <div class="memory-footer">
+          <span>Accessed: ${m.accessCount || 0} times</span>
+          <span>${m.createdAt ? new Date(m.createdAt).toLocaleTimeString() : ''}</span>
+        </div>
+      `;
+      elMemoryGrid.appendChild(card);
+    });
+  }
+
+  if (elBtnRefreshMemory) elBtnRefreshMemory.addEventListener('click', () => fetchMemory(elInputMemorySearch?.value));
+  if (elBtnSearchMemory) elBtnSearchMemory.addEventListener('click', () => fetchMemory(elInputMemorySearch?.value));
+  if (elInputMemorySearch) {
+    elInputMemorySearch.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') fetchMemory(elInputMemorySearch.value);
+    });
+  }
+
   // Init
   connectSSE();
   fetchOrgChart();
@@ -1252,6 +1326,7 @@
   fetchHeartbeats();
   fetchConnections();
   fetchDag();
+  fetchMemory();
   setInterval(() => {
     if (activeViewId === 'viewOrgChart') fetchOrgChart();
     if (activeViewId === 'viewTickets') fetchTickets();
@@ -1260,5 +1335,6 @@
     if (activeViewId === 'viewHeartbeats') fetchHeartbeats();
     if (activeViewId === 'viewConnections') fetchConnections();
     if (activeViewId === 'viewDag') fetchDag();
+    if (activeViewId === 'viewMemory') fetchMemory(elInputMemorySearch?.value);
   }, 4000);
 })();

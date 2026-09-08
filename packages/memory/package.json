@@ -1,5 +1,5 @@
 {
-  "name": "@forge/agent-system",
+  "name": "@forge/memory",
   "version": "0.1.0",
   "type": "module",
   "main": "./dist/index.js",
@@ -12,14 +12,11 @@
   },
   "dependencies": {
     "@forge/core": "workspace:*",
-    "@forge/provider-router": "workspace:*",
-    "@forge/skill-engine": "workspace:*",
-    "@forge/org-manager": "workspace:*",
-    "@forge/memory": "workspace:*",
     "@forge/storage": "workspace:*"
   },
   "scripts": {
     "build": "tsc",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run"
   }
 }

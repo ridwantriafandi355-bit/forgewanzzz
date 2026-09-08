@@ -158,6 +158,43 @@ describe("Forge CLI Command Center", () => {
     expect(dlqResult.count).toBe(0);
   });
 
+  it("forge memory stores, lists, and recalls knowledge per Doc 12", async () => {
+    await initCommand({ targetDir: tempDir });
+    const { memoryCommand } = await import("../src/commands/memory.js");
+    const dbPath = path.join(tempDir, ".forge", "forge.db");
+
+    // 1. Store a memory
+    const storeRes = await memoryCommand({
+      subcommand: "store",
+      title: "SQLite Concurrency Pattern",
+      content: "Always configure busy timeout to 5000ms and use WAL journal mode for parallel workers.",
+      tags: "sqlite,concurrency",
+      scopeType: "PROJECT",
+      scopeId: "proj_test",
+      dbPath,
+    });
+    expect(storeRes.count).toBe(1);
+    expect(storeRes.items[0].title).toBe("SQLite Concurrency Pattern");
+
+    // 2. Search for the stored memory
+    const searchRes = await memoryCommand({
+      subcommand: "search",
+      query: "concurrency timeout",
+      dbPath,
+    });
+    expect(searchRes.count).toBe(1);
+    expect(searchRes.items[0].title).toBe("SQLite Concurrency Pattern");
+
+    // 3. List memories
+    const listRes = await memoryCommand({
+      subcommand: "list",
+      scopeType: "PROJECT",
+      scopeId: "proj_test",
+      dbPath,
+    });
+    expect(listRes.count).toBe(1);
+  });
+
   it("runCli routes discovery, connections, resume, and dlq commands without unhandled errors", async () => {
     const { runCli } = await import("../src/cli.js");
 
@@ -169,6 +206,10 @@ describe("Forge CLI Command Center", () => {
 
     // Test dlq routing
     await expect(runCli(["node", "forge", "dlq", "--json"])).resolves.not.toThrow();
+
+    // Test memory routing
+    await expect(runCli(["node", "forge", "memory", "list", "--json"])).resolves.not.toThrow();
   });
 });
+
 

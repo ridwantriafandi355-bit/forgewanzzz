@@ -77,6 +77,12 @@
           <span class="nav-counter" id="navCountConnections">0</span>
         </button>
 
+        <button class="nav-item" data-view="viewMemory" id="navMemory">
+          <span class="nav-icon">🧠</span>
+          <span class="nav-label">Memory & Context</span>
+          <span class="nav-counter" id="navCountMemory">0</span>
+        </button>
+
         <div class="nav-section-label">TELEMETRY</div>
 
 
@@ -499,6 +505,25 @@
 
           <div class="connections-grid" id="connectionsGrid">
             <!-- Dynamically populated connection cards -->
+          </div>
+        </section>
+
+        <!-- VIEW: MEMORY & CONTEXT (DOC 12) -->
+        <section class="view-panel" id="viewMemory">
+          <div class="view-header">
+            <div>
+              <h2 class="view-title">Dual-Layer Memory & Context Vault</h2>
+              <p class="view-subtitle">SQLite FTS5 BM25 Semantic Recall & Short-Term Working Context (Doc 12 & FR-501)</p>
+            </div>
+            <div class="header-tools">
+              <input type="text" id="inputMemorySearch" class="form-input form-input-sm" placeholder="Search memories..." style="width: 220px;">
+              <button id="btnSearchMemory" class="btn btn-primary btn-sm">Search</button>
+              <button id="btnRefreshMemory" class="btn btn-secondary btn-sm">Refresh</button>
+            </div>
+          </div>
+
+          <div class="memory-grid" id="memoryGrid">
+            <!-- Dynamically populated memory cards -->
           </div>
         </section>
 

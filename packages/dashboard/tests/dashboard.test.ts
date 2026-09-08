@@ -311,6 +311,45 @@ describe("DashboardServer (Paperclip Autonomous Company OS)", () => {
     expect(firstNode.status).toBeDefined();
     expect(firstNode.role).toBeDefined();
   });
+
+  it("serves GET /api/memory, POST /api/memory, and POST /api/memory/search per Doc 12", async () => {
+    // 1. Store a memory
+    const postRes = await fetch(`http://localhost:${port}/api/memory`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        scopeType: "PROJECT",
+        scopeId: "proj_dash",
+        category: "LEARNING",
+        title: "Database Indexing Insight",
+        content: "Create indexes on foreign keys and frequently queried filter columns.",
+        tags: ["database", "indexes"],
+      }),
+    });
+    expect(postRes.status).toBe(200);
+    const postData = await postRes.json();
+    expect(postData.success).toBe(true);
+    expect(postData.memory.title).toBe("Database Indexing Insight");
+
+    // 2. Query list
+    const getRes = await fetch(`http://localhost:${port}/api/memory`);
+    expect(getRes.status).toBe(200);
+    const getData = await getRes.json();
+    expect(getData.success).toBe(true);
+    expect(getData.items.length).toBeGreaterThanOrEqual(1);
+
+    // 3. Search memory
+    const searchRes = await fetch(`http://localhost:${port}/api/memory/search`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ query: "indexing insight" }),
+    });
+    expect(searchRes.status).toBe(200);
+    const searchData = await searchRes.json();
+    expect(searchData.success).toBe(true);
+    expect(searchData.items.length).toBe(1);
+    expect(searchData.items[0].title).toBe("Database Indexing Insight");
+  });
 });
 
 
