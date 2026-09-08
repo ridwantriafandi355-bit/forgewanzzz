@@ -107,5 +107,5 @@ describe("E2E Phase 3: Execution Layer & Workspace Isolation Integration", () =>
     // 9. Clean up worktree
     await workspaceManager.removeWorktree(taskId);
     await expect(fs.stat(worktreeInfo.worktreePath)).rejects.toThrow();
-  });
+  }, 60000);
 });

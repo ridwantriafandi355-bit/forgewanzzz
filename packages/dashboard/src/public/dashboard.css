@@ -1165,3 +1165,133 @@ body {
   gap: 10px;
   padding-top: 10px;
 }
+
+/* AUTH & CONNECTIONS VIEW */
+.connections-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+  gap: 16px;
+  padding: 24px;
+}
+
+.connection-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border-subtle);
+  border-radius: 12px;
+  padding: 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  transition: all 0.2s ease;
+  backdrop-filter: blur(12px);
+}
+
+.connection-card:hover {
+  border-color: var(--border-active);
+  background: var(--bg-card-hover);
+  box-shadow: 0 4px 20px rgba(0, 240, 255, 0.08);
+  transform: translateY(-2px);
+}
+
+.connection-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.connection-brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.connection-avatar {
+  width: 36px;
+  height: 36px;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid var(--border-subtle);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 18px;
+}
+
+.connection-title {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--text-main);
+}
+
+.connection-id {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--text-muted);
+}
+
+.connection-badges {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+}
+
+.badge-pill {
+  padding: 3px 8px;
+  border-radius: 12px;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.4px;
+  text-transform: uppercase;
+}
+
+.badge-connected {
+  background: rgba(16, 185, 129, 0.15);
+  color: var(--emerald);
+  border: 1px solid rgba(16, 185, 129, 0.3);
+}
+
+.badge-configured {
+  background: rgba(245, 158, 11, 0.15);
+  color: var(--amber);
+  border: 1px solid rgba(245, 158, 11, 0.3);
+}
+
+.badge-disconnected {
+  background: rgba(239, 68, 68, 0.15);
+  color: var(--rose);
+  border: 1px solid rgba(239, 68, 68, 0.3);
+}
+
+.connection-meta-row {
+  display: flex;
+  justify-content: space-between;
+  font-size: 11px;
+  padding: 6px 0;
+  border-top: 1px solid rgba(255, 255, 255, 0.04);
+}
+
+.connection-meta-label {
+  color: var(--text-muted);
+}
+
+.connection-meta-val {
+  font-family: var(--font-mono);
+  color: var(--cyan);
+}
+
+.connection-health-msg {
+  font-size: 11px;
+  color: var(--text-muted);
+  background: rgba(0, 0, 0, 0.25);
+  padding: 8px 10px;
+  border-radius: 6px;
+  border-left: 2px solid var(--cyan);
+}
+
+.connection-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 4px;
+}
+

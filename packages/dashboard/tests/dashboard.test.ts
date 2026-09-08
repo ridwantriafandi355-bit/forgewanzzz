@@ -255,5 +255,46 @@ describe("DashboardServer (Paperclip Autonomous Company OS)", () => {
     expect(updated?.status).toBe("APPROVED");
     expect(updated?.decidedBy).toBe("Chairman of the Board");
   });
+
+  it("serves GET /api/connections, handles POST /api/connections, and executes connection health tests", async () => {
+    // 1. GET default connections
+    const listRes = await fetch(`http://localhost:${port}/api/connections`);
+    expect(listRes.status).toBe(200);
+    const listData = await listRes.json();
+    expect(listData.success).toBe(true);
+    expect(listData.connections.length).toBeGreaterThanOrEqual(3);
+
+    const anthropic = listData.connections.find((c: any) => c.id === "conn_anthropic_default");
+    expect(anthropic).toBeDefined();
+    expect(anthropic.type).toBe("PROVIDER");
+
+    // 2. Register a new connection
+    const postRes = await fetch(`http://localhost:${port}/api/connections`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        id: "conn_groq_cloud",
+        name: "Groq LPU Accelerator",
+        type: "PROVIDER",
+        authType: "API_KEY",
+        credentialRef: "secret://env/GROQ_API_KEY",
+      }),
+    });
+    expect(postRes.status).toBe(200);
+    const postData = await postRes.json();
+    expect(postData.success).toBe(true);
+    expect(postData.connection.id).toBe("conn_groq_cloud");
+
+    // 3. Test connection health
+    const testRes = await fetch(`http://localhost:${port}/api/connections/conn_local_ollama/test`, {
+      method: "POST",
+    });
+    expect(testRes.status).toBe(200);
+    const testData = await testRes.json();
+    expect(testData.success).toBe(true);
+    expect(testData.status).toBeDefined();
+    expect(testData.health).toBeDefined();
+  });
 });
+
 

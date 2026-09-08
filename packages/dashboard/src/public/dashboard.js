@@ -68,6 +68,22 @@
   const elSelectTicketAssignee = document.getElementById('selectTicketAssignee');
   const elInputTicketDesc = document.getElementById('inputTicketDesc');
 
+  // Auth & Connections Elements
+  const elNavCountConnections = document.getElementById('navCountConnections');
+  const elConnectionsGrid = document.getElementById('connectionsGrid');
+  const elBtnRefreshConnections = document.getElementById('btnRefreshConnections');
+  const elBtnOpenAddConnModal = document.getElementById('btnOpenAddConnModal');
+  const elConnModal = document.getElementById('connModal');
+  const elBtnCloseConnModal = document.getElementById('btnCloseConnModal');
+  const elBtnCancelConnModal = document.getElementById('btnCancelConnModal');
+  const elConnForm = document.getElementById('connForm');
+  const elInputConnId = document.getElementById('inputConnId');
+  const elInputConnName = document.getElementById('inputConnName');
+  const elSelectConnType = document.getElementById('selectConnType');
+  const elSelectConnAuth = document.getElementById('selectConnAuth');
+  const elInputConnSecretRef = document.getElementById('inputConnSecretRef');
+  const elInputConnEndpoint = document.getElementById('inputConnEndpoint');
+
   let activeViewId = 'viewOrgChart';
   let sseSource = null;
   let currentTickets = [];
@@ -122,6 +138,7 @@
     if (viewId === 'viewBudgets') fetchBudgets();
     if (viewId === 'viewHeartbeats') fetchHeartbeats();
     if (viewId === 'viewDiffs') fetchDiffs();
+    if (viewId === 'viewConnections') fetchConnections();
   }
 
   // --- 1. ORG CHART VIEW ---
@@ -580,6 +597,138 @@
     });
   }
 
+  // --- 7. AUTH & CONNECTIONS VIEW ---
+  async function fetchConnections() {
+    try {
+      const res = await fetch('/api/connections');
+      const data = await res.json();
+      if (!data.success) return;
+
+      if (elNavCountConnections) elNavCountConnections.textContent = data.count !== undefined ? data.count : data.connections.length;
+      renderConnections(data.connections);
+    } catch {}
+  }
+
+  function renderConnections(connections) {
+    if (!elConnectionsGrid) return;
+    elConnectionsGrid.innerHTML = '';
+
+    if (!connections || connections.length === 0) {
+      elConnectionsGrid.innerHTML = `
+        <div style="grid-column: 1 / -1; text-align: center; padding: 40px; color: var(--text-muted); background: var(--bg-card); border-radius: 12px; border: 1px dashed var(--border-subtle);">
+          No AI Provider or Runtime Connections registered yet. Click "+ Add Connection" to link Anthropic, OpenAI, Local Ollama, or custom host.
+        </div>
+      `;
+      return;
+    }
+
+    connections.forEach(conn => {
+      const card = document.createElement('div');
+      card.className = 'connection-card';
+
+      const status = conn.status || 'CONFIGURED';
+      let badgeClass = 'badge-configured';
+      if (status === 'CONNECTED') badgeClass = 'badge-connected';
+      else if (status === 'DISCONNECTED') badgeClass = 'badge-disconnected';
+
+      const typeIcon = conn.type === 'PROVIDER' ? '⚡' : (conn.type === 'RUNTIME' ? '💻' : '🔌');
+      const healthMsg = conn.health?.message || 'Awaiting status check';
+      const latencyStr = conn.health?.latencyMs ? ` (${conn.health.latencyMs}ms)` : '';
+
+      card.innerHTML = `
+        <div class="connection-header">
+          <div>
+            <div class="connection-title">${typeIcon} ${escapeHtml(conn.name)}</div>
+            <div class="connection-id">${escapeHtml(conn.id)}</div>
+          </div>
+          <div class="connection-badges">
+            <span class="badge-pill" style="background: rgba(99, 102, 241, 0.15); color: var(--indigo); border: 1px solid rgba(99, 102, 241, 0.3);">${escapeHtml(conn.type)}</span>
+            <span class="badge-pill ${badgeClass}">${escapeHtml(status)}</span>
+          </div>
+        </div>
+
+        <div class="connection-meta-row">
+          <span class="connection-meta-label">Auth Method</span>
+          <span class="connection-meta-val">${escapeHtml(conn.authType)}</span>
+        </div>
+
+        <div class="connection-meta-row">
+          <span class="connection-meta-label">Credential Vault Ref</span>
+          <span class="connection-meta-val">${escapeHtml(conn.credentialRef || 'None (Public/Local)')}</span>
+        </div>
+
+        ${conn.targetEndpoint ? `
+        <div class="connection-meta-row">
+          <span class="connection-meta-label">Target Endpoint</span>
+          <span class="connection-meta-val">${escapeHtml(conn.targetEndpoint)}</span>
+        </div>
+        ` : ''}
+
+        <div class="connection-health-msg">
+          <strong>Health:</strong> ${escapeHtml(healthMsg)}${latencyStr}
+        </div>
+
+        <div class="connection-actions">
+          <button class="btn btn-secondary btn-sm btn-test-conn" data-id="${escapeHtml(conn.id)}">
+            ⚡ Test Health
+          </button>
+        </div>
+      `;
+
+      const btnTest = card.querySelector('.btn-test-conn');
+      if (btnTest) {
+        btnTest.addEventListener('click', () => testConnection(conn.id, btnTest));
+      }
+
+      elConnectionsGrid.appendChild(card);
+    });
+  }
+
+  async function testConnection(connId, buttonEl) {
+    if (!connId) return;
+    if (buttonEl) {
+      buttonEl.disabled = true;
+      buttonEl.textContent = 'Testing...';
+    }
+    appendLog('info', `Testing connection health for [${connId}]...`);
+
+    try {
+      const res = await fetch('/api/connections/' + encodeURIComponent(connId) + '/test', {
+        method: 'POST'
+      });
+      const data = await res.json();
+      if (data.success) {
+        const isHealthy = data.health?.isHealthy;
+        const statusType = isHealthy ? 'success' : 'warn';
+        appendLog(statusType, `[${connId}] Health Probe: ${data.status} - ${data.health?.message || 'OK'}`);
+        await fetchConnections();
+      } else {
+        appendLog('error', `[${connId}] Test failed: ${data.error || 'Unknown error'}`);
+      }
+    } catch (err) {
+      appendLog('error', `[${connId}] Health test network error: ${err.message}`);
+    } finally {
+      if (buttonEl) {
+        buttonEl.disabled = false;
+        buttonEl.textContent = '⚡ Test Health';
+      }
+    }
+  }
+
+  function openConnModal() {
+    if (elConnModal) {
+      elConnModal.classList.add('open');
+      if (elInputConnId) elInputConnId.focus();
+    }
+  }
+
+  function closeConnModal() {
+    if (elConnModal) {
+      elConnModal.classList.remove('open');
+      if (elConnForm) elConnForm.reset();
+    }
+  }
+
   // --- SSE STREAM ---
   function connectSSE() {
     try {
@@ -615,6 +764,8 @@
             appendLog('warn', `⏸️ Task Paused: [${payload.taskId}]`);
             fetchApprovals();
             fetchTickets();
+          } else if (payload.type === 'CONNECTION_REGISTERED' || payload.type === 'CONNECTION_HEALTH_UPDATED') {
+            fetchConnections();
           }
         } catch {}
       };
@@ -687,6 +838,56 @@
     });
   }
 
+  // Connections Modal and Event Listeners
+  if (elBtnOpenAddConnModal) elBtnOpenAddConnModal.addEventListener('click', openConnModal);
+  if (elBtnCloseConnModal) elBtnCloseConnModal.addEventListener('click', closeConnModal);
+  if (elBtnCancelConnModal) elBtnCancelConnModal.addEventListener('click', closeConnModal);
+  if (elBtnRefreshConnections) elBtnRefreshConnections.addEventListener('click', fetchConnections);
+
+  if (elConnForm) {
+    elConnForm.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const id = elInputConnId.value.trim();
+      const name = elInputConnName.value.trim();
+      const type = elSelectConnType.value;
+      const authType = elSelectConnAuth.value;
+      const secretRef = elInputConnSecretRef.value.trim();
+      const targetEndpoint = elInputConnEndpoint.value.trim();
+
+      if (!id || !name) return;
+
+      closeConnModal();
+      appendLog('info', `Registering Connection: ${name} (${id})...`);
+
+      try {
+        const payload = {
+          id,
+          name,
+          type,
+          authType,
+          targetEndpoint: targetEndpoint || undefined,
+          credentialRef: secretRef.startsWith('secret://') ? secretRef : undefined,
+          secretValue: (!secretRef.startsWith('secret://') && secretRef) ? secretRef : undefined
+        };
+
+        const res = await fetch('/api/connections', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        });
+        const data = await res.json();
+        if (data.success) {
+          appendLog('success', `Connection [${id}] registered successfully!`);
+          await fetchConnections();
+        } else {
+          appendLog('error', `Failed to register connection: ${data.error}`);
+        }
+      } catch (err) {
+        appendLog('error', `Network error saving connection: ${err.message}`);
+      }
+    });
+  }
+
   // Init
   connectSSE();
   fetchOrgChart();
@@ -694,11 +895,13 @@
   fetchApprovals();
   fetchBudgets();
   fetchHeartbeats();
+  fetchConnections();
   setInterval(() => {
     if (activeViewId === 'viewOrgChart') fetchOrgChart();
     if (activeViewId === 'viewTickets') fetchTickets();
     if (activeViewId === 'viewApprovals') fetchApprovals();
     if (activeViewId === 'viewBudgets') fetchBudgets();
     if (activeViewId === 'viewHeartbeats') fetchHeartbeats();
+    if (activeViewId === 'viewConnections') fetchConnections();
   }, 4000);
 })();

@@ -65,7 +65,14 @@
           <span class="nav-label">Code Patches & Diffs</span>
         </button>
 
+        <button class="nav-item" data-view="viewConnections" id="navConnections">
+          <span class="nav-icon">🔑</span>
+          <span class="nav-label">Auth & Connections</span>
+          <span class="nav-counter" id="navCountConnections">0</span>
+        </button>
+
         <div class="nav-section-label">TELEMETRY</div>
+
 
         <button class="nav-item" data-view="viewAudit" id="navAudit">
           <span class="nav-icon">📋</span>
@@ -356,8 +363,27 @@
           </div>
         </section>
 
+        <!-- VIEW: AUTH & CONNECTIONS -->
+        <section class="view-panel" id="viewConnections">
+          <div class="view-header">
+            <div>
+              <h2 class="view-title">Auth & AI Provider Connections</h2>
+              <p class="view-subtitle">Zero-Raw-Token Credential Vault & Runtime Health Monitor (Doc 10 & 15)</p>
+            </div>
+            <div class="header-tools">
+              <button id="btnRefreshConnections" class="btn btn-secondary btn-sm">Refresh Health</button>
+              <button id="btnOpenAddConnModal" class="btn btn-primary btn-sm">+ Add Connection</button>
+            </div>
+          </div>
+
+          <div class="connections-grid" id="connectionsGrid">
+            <!-- Dynamically populated connection cards -->
+          </div>
+        </section>
+
       </div>
     </main>
+
 
     <!-- MODAL: CREATE NEW ISSUE / TICKET -->
     <div class="modal-overlay" id="ticketModal">
@@ -401,8 +427,60 @@
       </div>
     </div>
 
+    <!-- MODAL: REGISTER PROVIDER / RUNTIME CONNECTION -->
+    <div class="modal-overlay" id="connModal">
+      <div class="modal-card">
+        <div class="modal-header">
+          <h3 class="modal-title">Register Provider / Runtime Connection</h3>
+          <button class="modal-close" id="btnCloseConnModal">&times;</button>
+        </div>
+        <form id="connForm" class="modal-body">
+          <div class="form-group">
+            <label for="inputConnId" class="form-label">Connection ID</label>
+            <input type="text" id="inputConnId" class="form-input" placeholder="e.g. conn_groq_custom" required>
+          </div>
+          <div class="form-group">
+            <label for="inputConnName" class="form-label">Connection Name</label>
+            <input type="text" id="inputConnName" class="form-input" placeholder="e.g. Groq LPU Fast Inference" required>
+          </div>
+          <div class="form-row">
+            <div class="form-group flex-1">
+              <label for="selectConnType" class="form-label">Type</label>
+              <select id="selectConnType" class="form-select">
+                <option value="PROVIDER">PROVIDER (AI Inference)</option>
+                <option value="RUNTIME">RUNTIME (Coding Host)</option>
+                <option value="TOOL">TOOL (External API)</option>
+              </select>
+            </div>
+            <div class="form-group flex-1">
+              <label for="selectConnAuth" class="form-label">Auth Method</label>
+              <select id="selectConnAuth" class="form-select">
+                <option value="API_KEY">API_KEY</option>
+                <option value="NONE">NONE (Local / Public)</option>
+                <option value="CLI_LOGIN">CLI_LOGIN</option>
+              </select>
+            </div>
+          </div>
+          <div class="form-group">
+            <label for="inputConnSecretRef" class="form-label">Secret Reference or Raw Key (Masked Automatically)</label>
+            <input type="text" id="inputConnSecretRef" class="form-input" placeholder="secret://env/GROQ_API_KEY or gsk_...">
+            <small style="color: var(--text-muted); font-size: 11px; margin-top: 4px; display: block;">Credentials stored with zero-raw-token leakage invariant.</small>
+          </div>
+          <div class="form-group">
+            <label for="inputConnEndpoint" class="form-label">Target Endpoint (Optional for local/custom)</label>
+            <input type="text" id="inputConnEndpoint" class="form-input" placeholder="http://localhost:11434">
+          </div>
+          <div class="modal-footer">
+            <button type="button" class="btn btn-secondary" id="btnCancelConnModal">Cancel</button>
+            <button type="submit" class="btn btn-primary" id="btnSubmitConn">Save Connection</button>
+          </div>
+        </form>
+      </div>
+    </div>
+
   </div>
 
   <script src="/dashboard.js"></script>
 </body>
 </html>
+
