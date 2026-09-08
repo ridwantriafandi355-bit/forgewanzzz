@@ -25,7 +25,8 @@
     "@forge/auth-connections": "workspace:*",
     "@forge/provider-router": "workspace:*",
     "@forge/capability-resolver": "workspace:*",
-    "@forge/memory": "workspace:*"
+    "@forge/memory": "workspace:*",
+    "@forge/security": "workspace:*"
   },
   "scripts": {
     "build": "tsc",

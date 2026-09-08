@@ -17,7 +17,8 @@
     "@forge/org-manager": "workspace:*",
     "@forge/verification-engine": "workspace:*",
     "@forge/orchestration-engine": "workspace:*",
-    "@forge/memory": "workspace:*"
+    "@forge/memory": "workspace:*",
+    "@forge/security": "workspace:*"
   },
   "scripts": {
     "build": "tsc",

@@ -1,5 +1,5 @@
 {
-  "name": "@forge/tool-engine",
+  "name": "@forge/security",
   "version": "0.1.0",
   "type": "module",
   "main": "./dist/index.js",
@@ -12,9 +12,6 @@
   },
   "dependencies": {
     "@forge/core": "workspace:*",
-    "@forge/capability-resolver": "workspace:*",
-    "@forge/auth-connections": "workspace:*",
-    "@forge/security": "workspace:*",
     "@forge/storage": "workspace:*"
   },
   "scripts": {

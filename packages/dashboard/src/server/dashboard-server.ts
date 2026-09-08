@@ -5,7 +5,15 @@ import { fileURLToPath } from "node:url";
 import { randomUUID } from "node:crypto";
 import { exec } from "node:child_process";
 import { promisify } from "node:util";
-import { ForgeDatabase, ApprovalRepository, EventRepository, ConnectionRepository, StoredConnection, MemoryRepository } from "@forge/storage";
+import {
+  ForgeDatabase,
+  ApprovalRepository,
+  EventRepository,
+  ConnectionRepository,
+  StoredConnection,
+  MemoryRepository,
+  AuditChainRepository,
+} from "@forge/storage";
 import { EventBus } from "@forge/core";
 import { TaskEngineService } from "@forge/task-engine";
 import { OrchestratorService, MissionSpec } from "@forge/orchestration-engine";
@@ -26,6 +34,7 @@ export interface DashboardServerOptions {
   eventRepo?: EventRepository;
   connectionRepo?: ConnectionRepository;
   memoryRepo?: MemoryRepository;
+  auditRepo?: AuditChainRepository;
   publicDir?: string;
   workspaceRoot?: string;
 }
@@ -65,6 +74,7 @@ export class DashboardServer {
   private eventRepo: EventRepository;
   private connectionRepo: ConnectionRepository;
   private memoryRepo: MemoryRepository;
+  private auditRepo: AuditChainRepository;
 
   constructor(options: DashboardServerOptions) {
     this.options = options;
@@ -72,6 +82,7 @@ export class DashboardServer {
     this.eventRepo = options.eventRepo || new EventRepository(options.db);
     this.connectionRepo = options.connectionRepo || new ConnectionRepository(options.db);
     this.memoryRepo = options.memoryRepo || new MemoryRepository(options.db);
+    this.auditRepo = options.auditRepo || new AuditChainRepository(options.db);
     this.seedDefaultConnections();
   }
 
@@ -1344,6 +1355,74 @@ export class DashboardServer {
 
       res.writeHead(200, { "Content-Type": "application/json" });
       res.end(JSON.stringify({ success: true, memory: record }));
+      return;
+    }
+
+    // ==========================================
+    // 9.5 CRYPTOGRAPHIC SECURITY & AUDIT CHAIN API (Doc 17)
+    // ==========================================
+    if (pathname === "/api/security/status" && method === "GET") {
+      const integrity = this.auditRepo.verifyChainIntegrity();
+      const recentBlocks = this.auditRepo.listBlocks(10);
+      let revokedCount = 0;
+      try {
+        const row: any = raw.prepare("SELECT COUNT(*) as cnt FROM revoked_tokens").get();
+        revokedCount = row?.cnt ?? 0;
+      } catch {}
+
+      res.writeHead(200, { "Content-Type": "application/json" });
+      res.end(
+        JSON.stringify({
+          success: true,
+          integrity,
+          totalBlocks: integrity.totalBlocks,
+          revokedTokensCount: revokedCount,
+          recentBlocks,
+          latestBlock: recentBlocks[0] || null,
+        })
+      );
+      return;
+    }
+
+    if (pathname === "/api/security/chain" && method === "GET") {
+      const limitParam = url.searchParams.get("limit");
+      const limit = limitParam ? parseInt(limitParam, 10) : 50;
+      const integrity = this.auditRepo.verifyChainIntegrity();
+      const blocks = this.auditRepo.listBlocks(isNaN(limit) ? 50 : limit);
+
+      res.writeHead(200, { "Content-Type": "application/json" });
+      res.end(
+        JSON.stringify({
+          success: true,
+          integrity,
+          blocks,
+        })
+      );
+      return;
+    }
+
+    if (pathname === "/api/security/revoke" && method === "POST") {
+      const body = await this.readBody(req);
+      const tokenId = body.tokenId;
+      const reason = body.reason || "Revoked via Paperclip Dashboard";
+
+      if (!tokenId) {
+        res.writeHead(400, { "Content-Type": "application/json" });
+        res.end(JSON.stringify({ success: false, error: "tokenId is required" }));
+        return;
+      }
+
+      this.auditRepo.revokeToken(tokenId, reason);
+
+      this.broadcastEvent({
+        type: "TOKEN_REVOKED",
+        tokenId,
+        reason,
+        timestamp: new Date().toISOString(),
+      });
+
+      res.writeHead(200, { "Content-Type": "application/json" });
+      res.end(JSON.stringify({ success: true, tokenId, reason }));
       return;
     }
 

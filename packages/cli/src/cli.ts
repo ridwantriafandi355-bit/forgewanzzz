@@ -8,6 +8,7 @@ import { connectionsCommand } from "./commands/connections.js";
 import { resumeCommand } from "./commands/resume.js";
 import { dlqCommand } from "./commands/dlq.js";
 import { memoryCommand } from "./commands/memory.js";
+import { securityCommand } from "./commands/security.js";
 
 export async function runCli(argv: string[]): Promise<void> {
   const args = argv.slice(2);
@@ -117,8 +118,29 @@ export async function runCli(argv: string[]): Promise<void> {
       break;
     }
 
+    case "security": {
+      const sub = (args[1] === "revoke" || args[1] === "list") ? args[1] : "audit";
+      let tokenId: string | undefined;
+      let reason: string | undefined;
+
+      const tokenIdx = args.indexOf("--token");
+      if (tokenIdx !== -1 && args[tokenIdx + 1]) tokenId = args[tokenIdx + 1];
+      else if (sub === "revoke" && args[2] && !args[2].startsWith("--")) tokenId = args[2];
+
+      const reasonIdx = args.indexOf("--reason");
+      if (reasonIdx !== -1 && args[reasonIdx + 1]) reason = args[reasonIdx + 1];
+
+      await securityCommand({
+        subcommand: sub,
+        tokenId,
+        reason,
+        json: isJson,
+      });
+      break;
+    }
+
     default:
-      console.log("Usage: forge <init|run|status|verify|discovery|connections|resume|dlq|memory|ui>");
+      console.log("Usage: forge <init|run|status|verify|discovery|connections|resume|dlq|memory|security|ui>");
       break;
   }
 }

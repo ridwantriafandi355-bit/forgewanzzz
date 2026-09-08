@@ -1,6 +1,11 @@
-import { ExecutionToken, CapabilityDeniedError } from "@forge/core";
+import { ExecutionToken as CoreExecutionToken, CapabilityDeniedError } from "@forge/core";
 import { CapabilityResolver } from "@forge/capability-resolver";
 import { SecretRedactor } from "@forge/auth-connections";
+import {
+  ExecutionTokenManager,
+  AuditChain,
+  type ExecutionToken as SecurityExecutionToken,
+} from "@forge/security";
 import { ToolResult, ToolRiskLevel, ToolDefinition } from "../types/tool.js";
 import { WorkspaceJail } from "../guards/workspace-jail.js";
 import { SSRFGuard } from "../guards/ssrf-filter.js";
@@ -11,15 +16,25 @@ import { promisify } from "node:util";
 
 const execAsync = promisify(exec);
 
+export interface ToolEngineSecurityOptions {
+  tokenManager?: ExecutionTokenManager;
+  auditChain?: AuditChain;
+}
+
 export class ToolExecutionEngine {
   private toolRegistry: Map<string, ToolDefinition> = new Map();
   private redactor: SecretRedactor;
+  private tokenManager?: ExecutionTokenManager;
+  private auditChain?: AuditChain;
 
   constructor(
     private capabilityResolver: CapabilityResolver,
-    redactor?: SecretRedactor
+    redactor?: SecretRedactor,
+    securityOptions?: ToolEngineSecurityOptions
   ) {
     this.redactor = redactor || new SecretRedactor();
+    this.tokenManager = securityOptions?.tokenManager;
+    this.auditChain = securityOptions?.auditChain;
     this.registerBuiltinTools();
   }
 
@@ -65,20 +80,68 @@ export class ToolExecutionEngine {
     return this.toolRegistry.get(name);
   }
 
-  async execute(toolName: string, args: Record<string, unknown>, token: ExecutionToken): Promise<ToolResult> {
+  async execute(
+    toolName: string,
+    args: Record<string, unknown>,
+    token: CoreExecutionToken | SecurityExecutionToken | string
+  ): Promise<ToolResult> {
     const start = Date.now();
+    let workspacePath = "";
+    let actorId = "system";
+    let taskId = "";
 
     // 1. Verify Token Authenticity and Validity
-    if (!this.capabilityResolver.verifyToken(token)) {
-      throw new CapabilityDeniedError(toolName, "Invalid or expired ExecutionToken signature");
+    if (this.tokenManager) {
+      const validation = this.tokenManager.validateToken(token as any, { toolId: toolName });
+      if (!validation.valid) {
+        throw new CapabilityDeniedError(
+          toolName,
+          `Security verification failed: ${validation.reason}`
+        );
+      }
+
+      let tokenId = "";
+      if (typeof token === "string") {
+        const des = this.tokenManager.deserializeToken(token);
+        tokenId = des.payload.tokenId;
+        workspacePath = des.payload.workspacePath ?? "";
+        actorId = des.payload.agentId ?? "system";
+        taskId = des.payload.taskId ?? "";
+      } else if ((token as any).payload) {
+        const secTok = token as SecurityExecutionToken;
+        tokenId = secTok.payload.tokenId;
+        workspacePath = secTok.payload.workspacePath ?? "";
+        actorId = secTok.payload.agentId ?? "system";
+        taskId = secTok.payload.taskId ?? "";
+      } else {
+        const coreTok = token as CoreExecutionToken;
+        tokenId = coreTok.tokenId;
+        workspacePath = coreTok.workspacePath;
+        actorId = coreTok.agentId;
+        taskId = coreTok.taskId;
+      }
+      this.tokenManager.recordInvocation(tokenId);
+    } else {
+      if (!this.capabilityResolver.verifyToken(token as any)) {
+        throw new CapabilityDeniedError(
+          toolName,
+          "Invalid or expired ExecutionToken signature"
+        );
+      }
+
+      const coreTok = token as CoreExecutionToken;
+      if (!coreTok.allowedTools.includes(toolName) && !coreTok.allowedTools.includes("*")) {
+        throw new CapabilityDeniedError(
+          toolName,
+          `Tool '${toolName}' is not authorized by this ExecutionToken`
+        );
+      }
+      workspacePath = coreTok.workspacePath;
+      actorId = coreTok.agentId;
+      taskId = coreTok.taskId;
     }
 
-    // 2. Verify Tool is Granted by Token
-    if (!token.allowedTools.includes(toolName)) {
-      throw new CapabilityDeniedError(toolName, `Tool '${toolName}' is not authorized by this ExecutionToken`);
-    }
-
-    // 3. Resolve Tool Risk & Check Human Approval Gate
+    // 2. Resolve Tool Risk & Check Human Approval Gate
     const toolDef = this.toolRegistry.get(toolName);
     const riskLevel: ToolRiskLevel = toolDef?.riskLevel || "MEDIUM";
 
@@ -96,21 +159,21 @@ export class ToolExecutionEngine {
       }
     }
 
-    // 4. Dispatch Tool Execution
+    // 3. Dispatch Tool Execution
     let output: unknown;
     try {
       switch (toolName) {
         case "filesystem.write":
-          output = await this.executeFilesystemWrite(args, token.workspacePath);
+          output = await this.executeFilesystemWrite(args, workspacePath);
           break;
         case "filesystem.read":
-          output = await this.executeFilesystemRead(args, token.workspacePath);
+          output = await this.executeFilesystemRead(args, workspacePath);
           break;
         case "shell.exec":
-          output = await this.executeShell(args, token.workspacePath);
+          output = await this.executeShell(args, workspacePath);
           break;
         case "git.status":
-          output = await this.executeGitStatus(token.workspacePath);
+          output = await this.executeGitStatus(workspacePath);
           break;
         case "http.request":
           output = await this.executeHttpRequest(args);
@@ -122,6 +185,20 @@ export class ToolExecutionEngine {
           throw new Error(`Unsupported tool: ${toolName}`);
       }
 
+      if (this.auditChain) {
+        this.auditChain.append({
+          eventType: "TOOL_EXECUTED",
+          actorId,
+          payload: {
+            toolName,
+            taskId,
+            success: true,
+            riskLevel,
+            executionTimeMs: Date.now() - start,
+          },
+        });
+      }
+
       return {
         success: true,
         output,
@@ -129,7 +206,24 @@ export class ToolExecutionEngine {
         executionTimeMs: Date.now() - start,
       };
     } catch (err: any) {
-      if (err.message.includes("Path traversal") || err.message.includes("SSRF Violation")) {
+      if (this.auditChain) {
+        this.auditChain.append({
+          eventType: "TOOL_FAILED",
+          actorId,
+          payload: {
+            toolName,
+            taskId,
+            success: false,
+            riskLevel,
+            error: err.message,
+          },
+        });
+      }
+
+      if (
+        err.message.includes("Path traversal") ||
+        err.message.includes("SSRF Violation")
+      ) {
         throw err;
       }
       return {

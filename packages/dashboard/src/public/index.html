@@ -83,6 +83,12 @@
           <span class="nav-counter" id="navCountMemory">0</span>
         </button>
 
+        <button class="nav-item" data-view="viewSecurity" id="navSecurity">
+          <span class="nav-icon">🛡️</span>
+          <span class="nav-label">Security & Audit Chain</span>
+          <span class="nav-counter" id="navCountBlocks">0</span>
+        </button>
+
         <div class="nav-section-label">TELEMETRY</div>
 
 
@@ -527,6 +533,55 @@
           </div>
         </section>
 
+        <!-- VIEW: SECURITY & AUDIT CHAIN (DOC 17) -->
+        <section class="view-panel" id="viewSecurity">
+          <div class="view-header">
+            <div>
+              <h2 class="view-title">Cryptographic Security Model & Audit Ledger</h2>
+              <p class="view-subtitle">Tamper-evident SHA-256 Hash Chaining, HMAC-SHA256 Execution Tokens & Layer 1 Attestation (Doc 17)</p>
+            </div>
+            <div class="header-tools">
+              <button id="btnVerifyChain" class="btn btn-primary btn-sm">Verify Chain Integrity</button>
+              <button id="btnOpenRevokeModal" class="btn btn-secondary btn-sm">Revoke Token</button>
+              <button id="btnRefreshSecurity" class="btn btn-secondary btn-sm">Refresh</button>
+            </div>
+          </div>
+
+          <!-- Security Status Metric Strip -->
+          <div class="security-metrics-strip" style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; margin-bottom: 24px;">
+            <div class="card stat-card" style="padding: 16px; background: var(--bg-card); border: 1px solid var(--border-color); border-radius: 8px;">
+              <div style="font-size: 11px; text-transform: uppercase; color: var(--text-muted); letter-spacing: 0.5px;">Chain Integrity</div>
+              <div id="statChainStatus" style="font-size: 20px; font-weight: 700; color: #10b981; margin-top: 4px;">VERIFIED</div>
+              <div style="font-size: 11px; color: var(--text-muted); margin-top: 2px;">Constant-Time Audited</div>
+            </div>
+            <div class="card stat-card" style="padding: 16px; background: var(--bg-card); border: 1px solid var(--border-color); border-radius: 8px;">
+              <div style="font-size: 11px; text-transform: uppercase; color: var(--text-muted); letter-spacing: 0.5px;">Total Blocks</div>
+              <div id="statTotalBlocks" style="font-size: 20px; font-weight: 700; color: #3b82f6; margin-top: 4px;">0</div>
+              <div style="font-size: 11px; color: var(--text-muted); margin-top: 2px;">Immutable SHA-256 Ledger</div>
+            </div>
+            <div class="card stat-card" style="padding: 16px; background: var(--bg-card); border: 1px solid var(--border-color); border-radius: 8px;">
+              <div style="font-size: 11px; text-transform: uppercase; color: var(--text-muted); letter-spacing: 0.5px;">Revoked Tokens</div>
+              <div id="statRevokedTokens" style="font-size: 20px; font-weight: 700; color: #f59e0b; margin-top: 4px;">0</div>
+              <div style="font-size: 11px; color: var(--text-muted); margin-top: 2px;">Active Deny-List</div>
+            </div>
+            <div class="card stat-card" style="padding: 16px; background: var(--bg-card); border: 1px solid var(--border-color); border-radius: 8px;">
+              <div style="font-size: 11px; text-transform: uppercase; color: var(--text-muted); letter-spacing: 0.5px;">Latest Block Hash</div>
+              <div id="statLatestHash" style="font-size: 12px; font-family: monospace; color: #a855f7; margin-top: 8px; word-break: break-all;">GENESIS</div>
+            </div>
+          </div>
+
+          <!-- Audit Chain Ledger Table -->
+          <div class="card" style="background: var(--bg-card); border: 1px solid var(--border-color); border-radius: 8px; overflow: hidden;">
+            <div style="padding: 16px; border-bottom: 1px solid var(--border-color); display: flex; justify-content: space-between; align-items: center;">
+              <h3 style="margin: 0; font-size: 14px; font-weight: 600;">Cryptographic Audit Trail</h3>
+              <span id="chainVerificationBadge" style="padding: 4px 10px; border-radius: 12px; font-size: 11px; font-weight: 600; background: rgba(16, 185, 129, 0.1); color: #10b981; border: 1px solid rgba(16, 185, 129, 0.3);">Hash Linkage Verified</span>
+            </div>
+            <div class="audit-chain-list" id="auditChainList" style="padding: 12px;">
+              <!-- Dynamically populated blocks -->
+            </div>
+          </div>
+        </section>
+
       </div>
     </main>
 
@@ -619,6 +674,30 @@
           <div class="modal-footer">
             <button type="button" class="btn btn-secondary" id="btnCancelConnModal">Cancel</button>
             <button type="submit" class="btn btn-primary" id="btnSubmitConn">Save Connection</button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <!-- MODAL: REVOKE EXECUTION TOKEN -->
+    <div class="modal-overlay" id="revokeModal">
+      <div class="modal-card">
+        <div class="modal-header">
+          <h3 class="modal-title">Revoke Execution Token</h3>
+          <button class="modal-close" id="btnCloseRevokeModal">&times;</button>
+        </div>
+        <form id="revokeForm" class="modal-body">
+          <div class="form-group">
+            <label for="inputRevokeTokenId" class="form-label">Token ID to Revoke</label>
+            <input type="text" id="inputRevokeTokenId" class="form-input" placeholder="e.g. tok_..." required>
+          </div>
+          <div class="form-group">
+            <label for="inputRevokeReason" class="form-label">Revocation Reason</label>
+            <input type="text" id="inputRevokeReason" class="form-input" placeholder="e.g. Suspected credential exposure" required>
+          </div>
+          <div class="modal-footer">
+            <button type="button" class="btn btn-secondary" id="btnCancelRevokeModal">Cancel</button>
+            <button type="submit" class="btn btn-primary" id="btnSubmitRevoke" style="background: #ef4444; border-color: #dc2626;">Revoke Immediately</button>
           </div>
         </form>
       </div>

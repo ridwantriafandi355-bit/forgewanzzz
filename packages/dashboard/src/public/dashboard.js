@@ -201,6 +201,8 @@
     if (viewId === 'viewDiffs') fetchDiffs();
     if (viewId === 'viewConnections') fetchConnections();
     if (viewId === 'viewDag') fetchDag();
+    if (viewId === 'viewMemory') fetchMemory(elInputMemorySearch?.value);
+    if (viewId === 'viewSecurity') fetchSecurity();
   }
 
   // --- 1. ORG CHART VIEW ---
@@ -1124,6 +1126,9 @@
           } else if (payload.type === 'MEMORY_STORED') {
             appendLog('info', `🧠 New Memory Ingested into Vault: [${payload.memory?.category || 'MEMORY'}] ${payload.memory?.title || ''}`, 'SYS');
             fetchMemory();
+          } else if (payload.type === 'TOKEN_REVOKED') {
+            appendLog('warn', `🛡️ Token Revoked: [${payload.tokenId}] Reason: ${payload.reason}`, 'SECURITY');
+            fetchSecurity();
           }
         } catch {}
       };
@@ -1317,6 +1322,158 @@
     });
   }
 
+  // --- SECURITY & AUDIT CHAIN (DOC 17) ---
+  const elNavCountBlocks = document.getElementById('navCountBlocks');
+  const elStatChainStatus = document.getElementById('statChainStatus');
+  const elStatTotalBlocks = document.getElementById('statTotalBlocks');
+  const elStatRevokedTokens = document.getElementById('statRevokedTokens');
+  const elStatLatestHash = document.getElementById('statLatestHash');
+  const elAuditChainList = document.getElementById('auditChainList');
+  const elChainVerificationBadge = document.getElementById('chainVerificationBadge');
+  const elBtnVerifyChain = document.getElementById('btnVerifyChain');
+  const elBtnRefreshSecurity = document.getElementById('btnRefreshSecurity');
+  const elBtnOpenRevokeModal = document.getElementById('btnOpenRevokeModal');
+  const elRevokeModal = document.getElementById('revokeModal');
+  const elBtnCloseRevokeModal = document.getElementById('btnCloseRevokeModal');
+  const elBtnCancelRevokeModal = document.getElementById('btnCancelRevokeModal');
+  const elRevokeForm = document.getElementById('revokeForm');
+  const elInputRevokeTokenId = document.getElementById('inputRevokeTokenId');
+  const elInputRevokeReason = document.getElementById('inputRevokeReason');
+
+  async function fetchSecurity() {
+    try {
+      const res = await fetch('/api/security/status');
+      const data = await res.json();
+      if (!data.success) return;
+
+      if (elNavCountBlocks) elNavCountBlocks.textContent = data.totalBlocks || 0;
+      if (elStatTotalBlocks) elStatTotalBlocks.textContent = data.totalBlocks || 0;
+      if (elStatRevokedTokens) elStatRevokedTokens.textContent = data.revokedTokensCount || 0;
+
+      if (data.latestBlock) {
+        if (elStatLatestHash) {
+          const h = data.latestBlock.blockHash;
+          elStatLatestHash.textContent = `${h.slice(0, 10)}...${h.slice(-8)}`;
+        }
+      } else {
+        if (elStatLatestHash) elStatLatestHash.textContent = 'GENESIS';
+      }
+
+      if (data.integrity) {
+        if (data.integrity.valid) {
+          if (elStatChainStatus) {
+            elStatChainStatus.textContent = 'VERIFIED';
+            elStatChainStatus.style.color = '#10b981';
+          }
+          if (elChainVerificationBadge) {
+            elChainVerificationBadge.textContent = 'Hash Linkage Verified (SHA-256)';
+            elChainVerificationBadge.style.color = '#10b981';
+            elChainVerificationBadge.style.borderColor = 'rgba(16, 185, 129, 0.3)';
+            elChainVerificationBadge.style.background = 'rgba(16, 185, 129, 0.1)';
+          }
+        } else {
+          if (elStatChainStatus) {
+            elStatChainStatus.textContent = 'TAMPERED';
+            elStatChainStatus.style.color = '#ef4444';
+          }
+          if (elChainVerificationBadge) {
+            elChainVerificationBadge.textContent = `Tamper Detected at Block #${data.integrity.brokenAtHeight}`;
+            elChainVerificationBadge.style.color = '#ef4444';
+            elChainVerificationBadge.style.borderColor = 'rgba(239, 68, 68, 0.3)';
+            elChainVerificationBadge.style.background = 'rgba(239, 68, 68, 0.1)';
+          }
+        }
+      }
+
+      renderAuditChain(data.recentBlocks || []);
+    } catch {}
+  }
+
+  function renderAuditChain(blocks) {
+    if (!elAuditChainList) return;
+    elAuditChainList.innerHTML = '';
+
+    if (!blocks || blocks.length === 0) {
+      elAuditChainList.innerHTML = '<div style="text-align: center; padding: 32px; color: var(--text-muted); font-size: 13px;">No cryptographic audit blocks recorded yet.</div>';
+      return;
+    }
+
+    blocks.forEach((b) => {
+      const row = document.createElement('div');
+      row.style.display = 'flex';
+      row.style.alignItems = 'center';
+      row.style.justifyContent = 'space-between';
+      row.style.padding = '10px 14px';
+      row.style.borderBottom = '1px solid var(--border-color)';
+      row.style.fontSize = '12px';
+
+      const typeColor = b.eventType === 'TOKEN_REVOKED' ? '#ef4444' : (b.eventType === 'TOOL_EXECUTED' ? '#3b82f6' : '#10b981');
+
+      row.innerHTML = `
+        <div style="display: flex; align-items: center; gap: 12px;">
+          <span style="font-weight: 700; color: #94a3b8; font-family: monospace; min-width: 40px;">#${b.blockHeight}</span>
+          <span style="padding: 2px 8px; border-radius: 4px; font-weight: 600; font-size: 11px; background: rgba(255,255,255,0.05); color: ${typeColor}; border: 1px solid rgba(255,255,255,0.1);">${escapeHtml(b.eventType)}</span>
+          <span style="color: var(--text-muted);">actor: <strong style="color: var(--text-main);">${escapeHtml(b.actorId)}</strong></span>
+        </div>
+        <div style="display: flex; align-items: center; gap: 16px;">
+          <span style="font-family: monospace; color: #a855f7; font-size: 11px;">${b.blockHash.slice(0, 8)}...${b.blockHash.slice(-6)}</span>
+          <span style="color: var(--text-muted); font-size: 11px;">${b.createdAt ? new Date(b.createdAt).toLocaleTimeString() : ''}</span>
+        </div>
+      `;
+      elAuditChainList.appendChild(row);
+    });
+  }
+
+  if (elBtnVerifyChain) {
+    elBtnVerifyChain.addEventListener('click', async () => {
+      await fetchSecurity();
+      appendLog('info', 'Ran constant-time cryptographic audit check on ledger.', 'SECURITY');
+    });
+  }
+  if (elBtnRefreshSecurity) elBtnRefreshSecurity.addEventListener('click', fetchSecurity);
+  if (elBtnOpenRevokeModal) {
+    elBtnOpenRevokeModal.addEventListener('click', () => {
+      if (elRevokeModal) elRevokeModal.classList.add('active');
+    });
+  }
+  if (elBtnCloseRevokeModal) {
+    elBtnCloseRevokeModal.addEventListener('click', () => {
+      if (elRevokeModal) elRevokeModal.classList.remove('active');
+    });
+  }
+  if (elBtnCancelRevokeModal) {
+    elBtnCancelRevokeModal.addEventListener('click', () => {
+      if (elRevokeModal) elRevokeModal.classList.remove('active');
+    });
+  }
+  if (elRevokeForm) {
+    elRevokeForm.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const tokenId = elInputRevokeTokenId?.value?.trim();
+      const reason = elInputRevokeReason?.value?.trim();
+      if (!tokenId) return;
+
+      try {
+        const res = await fetch('/api/security/revoke', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ tokenId, reason }),
+        });
+        const data = await res.json();
+        if (data.success) {
+          appendLog('warn', `Revoked token ${tokenId}: ${reason}`, 'SECURITY');
+          if (elRevokeModal) elRevokeModal.classList.remove('active');
+          if (elRevokeForm) elRevokeForm.reset();
+          fetchSecurity();
+        } else {
+          appendLog('error', `Failed to revoke token: ${data.error}`, 'SECURITY');
+        }
+      } catch (err) {
+        appendLog('error', `Network error revoking token: ${err.message}`, 'SECURITY');
+      }
+    });
+  }
+
   // Init
   connectSSE();
   fetchOrgChart();
@@ -1327,6 +1484,7 @@
   fetchConnections();
   fetchDag();
   fetchMemory();
+  fetchSecurity();
   setInterval(() => {
     if (activeViewId === 'viewOrgChart') fetchOrgChart();
     if (activeViewId === 'viewTickets') fetchTickets();
@@ -1336,5 +1494,6 @@
     if (activeViewId === 'viewConnections') fetchConnections();
     if (activeViewId === 'viewDag') fetchDag();
     if (activeViewId === 'viewMemory') fetchMemory(elInputMemorySearch?.value);
+    if (activeViewId === 'viewSecurity') fetchSecurity();
   }, 4000);
 })();

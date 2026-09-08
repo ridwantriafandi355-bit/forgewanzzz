@@ -80,6 +80,9 @@ importers:
       '@forge/runtime-engine':
         specifier: workspace:*
         version: link:../runtime-engine
+      '@forge/security':
+        specifier: workspace:*
+        version: link:../security
       '@forge/storage':
         specifier: workspace:*
         version: link:../storage
@@ -106,6 +109,9 @@ importers:
       '@forge/org-manager':
         specifier: workspace:*
         version: link:../org-manager
+      '@forge/security':
+        specifier: workspace:*
+        version: link:../security
       '@forge/storage':
         specifier: workspace:*
         version: link:../storage
@@ -195,6 +201,15 @@ importers:
         specifier: workspace:*
         version: link:../workspace
 
+  packages/security:
+    dependencies:
+      '@forge/core':
+        specifier: workspace:*
+        version: link:../core
+      '@forge/storage':
+        specifier: workspace:*
+        version: link:../storage
+
   packages/skill-engine:
     dependencies:
       '@forge/core':
@@ -231,6 +246,12 @@ importers:
       '@forge/core':
         specifier: workspace:*
         version: link:../core
+      '@forge/security':
+        specifier: workspace:*
+        version: link:../security
+      '@forge/storage':
+        specifier: workspace:*
+        version: link:../storage
 
   packages/verification-engine:
     dependencies:
