@@ -49,12 +49,17 @@ export function getCliConnectionManager(workspaceRoot?: string): ConnectionManag
       const stored = repo.findAll();
       if (stored.length > 0) {
         for (const s of stored) {
+          let liveStatus = s.status as any;
+          if (s.credentialRef?.startsWith("secret://env/")) {
+            const envKey = s.credentialRef.replace("secret://env/", "");
+            liveStatus = process.env[envKey] ? "CONNECTED" : "CONFIGURED";
+          }
           sharedConnectionManager.registerConnection({
             id: s.id,
             name: s.name,
             type: s.type as any,
             authType: s.authType as any,
-            status: s.status as any,
+            status: liveStatus,
             credentialOwnership: s.credentialOwnership as any,
             credentialRef: s.credentialRef,
             targetEndpoint: s.targetEndpoint,
@@ -62,6 +67,24 @@ export function getCliConnectionManager(workspaceRoot?: string): ConnectionManag
             createdAt: s.createdAt,
             updatedAt: s.updatedAt,
           });
+        }
+        const hasGemini = stored.some((s) => s.id === "conn_gemini_default");
+        if (!hasGemini) {
+          const geminiRecord: ConnectionRecord = {
+            id: "conn_gemini_default",
+            name: "Google Gemini Pro Cloud",
+            type: "PROVIDER",
+            authType: "API_KEY",
+            status: process.env.GEMINI_API_KEY ? "CONNECTED" : "CONFIGURED",
+            credentialOwnership: "USER_MANAGED",
+            credentialRef: "secret://env/GEMINI_API_KEY",
+            createdAt: new Date().toISOString(),
+            updatedAt: new Date().toISOString(),
+          };
+          sharedConnectionManager.registerConnection(geminiRecord);
+          try {
+            repo.save(geminiRecord as any);
+          } catch {}
         }
         return sharedConnectionManager;
       }
@@ -99,6 +122,17 @@ export function getCliConnectionManager(workspaceRoot?: string): ConnectionManag
         status: 'CONNECTED',
         credentialOwnership: 'USER_MANAGED',
         targetEndpoint: 'http://localhost:11434',
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+      },
+      {
+        id: 'conn_gemini_default',
+        name: 'Google Gemini Pro Cloud',
+        type: 'PROVIDER',
+        authType: 'API_KEY',
+        status: process.env.GEMINI_API_KEY ? 'CONNECTED' : 'CONFIGURED',
+        credentialOwnership: 'USER_MANAGED',
+        credentialRef: 'secret://env/GEMINI_API_KEY',
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString(),
       },
