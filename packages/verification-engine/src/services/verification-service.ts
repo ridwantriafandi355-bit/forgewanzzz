@@ -1,5 +1,6 @@
 import { randomUUID } from "node:crypto";
 import { DeterministicVerifier } from "./deterministic-verifier.js";
+import { SemanticVerifier } from "./semantic-verifier.js";
 import type {
   VerifyTaskInput,
   VerificationEvidence,
@@ -9,6 +10,15 @@ import type {
 
 export class VerificationService {
   private deterministicVerifier = new DeterministicVerifier();
+  private semanticVerifier: SemanticVerifier;
+
+  constructor(semanticVerifier?: SemanticVerifier) {
+    this.semanticVerifier = semanticVerifier || new SemanticVerifier();
+  }
+
+  public getSemanticVerifier(): SemanticVerifier {
+    return this.semanticVerifier;
+  }
 
   async verifyTask(input: VerifyTaskInput): Promise<VerificationEvidence> {
     const checksResults: Record<string, any> = {};
@@ -34,11 +44,24 @@ export class VerificationService {
 
       case "MIXED":
         layer = "MIXED";
-        if (input.layer2Reviewer) {
+        // INVARIANT-005.1: If Layer 1 failed, Layer 2 CANNOT overrule it
+        if (!layer1Passed) {
+          overallPassed = false;
+          reviewerAssessment = {
+            passed: false,
+            comments: "Layer 2 Semantic Review skipped because Layer 1 deterministic checks failed.",
+            summary: "Layer 1 checks failed; semantic review blocked per INVARIANT-005.1.",
+            overallScore: 0,
+            timestamp: new Date().toISOString(),
+          };
+        } else if (input.layer2Reviewer) {
           reviewerAssessment = await input.layer2Reviewer();
-          // INVARIANT-005.1: Reviewer CANNOT overrule a failed Layer 1 check
+          overallPassed = layer1Passed && reviewerAssessment.passed;
+        } else if (input.semanticReviewInput) {
+          reviewerAssessment = await this.semanticVerifier.evaluate(input.semanticReviewInput);
           overallPassed = layer1Passed && reviewerAssessment.passed;
         } else {
+          // If MIXED was selected but neither custom reviewer nor review input provided, fail safe
           overallPassed = false;
         }
         break;

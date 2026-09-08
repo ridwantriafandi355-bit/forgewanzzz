@@ -13,12 +13,50 @@ export interface CheckResult {
   logs: string;
 }
 
+export type IssueSeverity = "CRITICAL" | "WARNING" | "SUGGESTION";
+
+export interface SemanticReviewIssue {
+  severity: IssueSeverity;
+  file?: string;
+  line?: number;
+  rule: string;
+  message: string;
+  suggestion?: string;
+}
+
+export interface SemanticCriterionScore {
+  passed: boolean;
+  score: number; // 0 to 100
+  notes?: string;
+}
+
+export interface SemanticReviewCriteria {
+  architecturalCompliance: SemanticCriterionScore;
+  typeSafetyAndCleanliness: SemanticCriterionScore;
+  testAdequacy: SemanticCriterionScore;
+  securityAudit: SemanticCriterionScore;
+}
+
 export interface Layer2ReviewerAssessment {
   passed: boolean;
-  comments: string;
+  comments?: string;
+  summary?: string;
+  reviewerAgentId?: string;
+  overallScore?: number; // 0 to 100
+  criteria?: SemanticReviewCriteria;
+  issues?: SemanticReviewIssue[];
+  timestamp?: string;
 }
 
 export type Layer2Reviewer = () => Promise<Layer2ReviewerAssessment>;
+
+export interface SemanticReviewInput {
+  taskId: string;
+  diff?: string;
+  files?: Array<{ path: string; content: string }>;
+  taskDescription?: string;
+  reviewerAgentId?: string;
+}
 
 export interface HumanAttestation {
   passed: boolean;
@@ -43,6 +81,7 @@ export interface VerifyTaskInput {
   policy: CompletionPolicy;
   layer1Checks?: CheckCommand[];
   layer2Reviewer?: Layer2Reviewer;
+  semanticReviewInput?: SemanticReviewInput;
   humanAttestation?: HumanAttestation;
   artifacts?: string[];
 }

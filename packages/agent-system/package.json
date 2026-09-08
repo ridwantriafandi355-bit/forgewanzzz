@@ -16,7 +16,8 @@
     "@forge/skill-engine": "workspace:*",
     "@forge/org-manager": "workspace:*",
     "@forge/memory": "workspace:*",
-    "@forge/storage": "workspace:*"
+    "@forge/storage": "workspace:*",
+    "@forge/verification-engine": "workspace:*"
   },
   "scripts": {
     "build": "tsc",

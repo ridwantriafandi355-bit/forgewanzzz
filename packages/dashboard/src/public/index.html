@@ -729,6 +729,55 @@
             <button type="submit" class="btn btn-primary" id="btnSubmitOrg">Create Organization</button>
           </div>
         </form>
+    <!-- MODAL: LAYER 2 SEMANTIC REVIEW DETAILS -->
+    <div class="modal-overlay" id="reviewModal">
+      <div class="modal-card" style="max-width: 680px; width: 100%;">
+        <div class="modal-header">
+          <h3 class="modal-title">Layer 2 Semantic Review</h3>
+          <button class="modal-close" id="btnCloseReviewModal">&times;</button>
+        </div>
+        <div class="modal-body" style="padding: 20px;">
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+            <div>
+              <span id="reviewStatusBadge" class="badge badge-success" style="font-size: 13px; padding: 4px 12px;">APPROVED</span>
+              <span id="reviewAgentId" style="font-size: 12px; color: var(--text-muted); margin-left: 8px;">evaluator.senior-architect</span>
+            </div>
+            <div style="font-size: 20px; font-weight: 700; color: #3b82f6;">
+              <span id="reviewOverallScore">95</span><span style="font-size: 12px; color: var(--text-muted);">/100</span>
+            </div>
+          </div>
+
+          <p id="reviewSummary" style="font-size: 13px; color: var(--text-main); margin-bottom: 20px; background: rgba(255,255,255,0.03); padding: 12px; border-radius: 6px; border: 1px solid var(--border-color);"></p>
+
+          <h4 style="font-size: 12px; text-transform: uppercase; letter-spacing: 0.5px; color: var(--text-muted); margin-bottom: 12px;">Criteria Evaluation</h4>
+          <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; margin-bottom: 20px;">
+            <div style="background: var(--bg-card); border: 1px solid var(--border-color); border-radius: 6px; padding: 10px;">
+              <div style="font-size: 11px; color: var(--text-muted);">Security Audit</div>
+              <div id="reviewSecScore" style="font-weight: 600; font-size: 14px; margin-top: 2px;">PASS (95/100)</div>
+            </div>
+            <div style="background: var(--bg-card); border: 1px solid var(--border-color); border-radius: 6px; padding: 10px;">
+              <div style="font-size: 11px; color: var(--text-muted);">Architectural Standard</div>
+              <div id="reviewArchScore" style="font-weight: 600; font-size: 14px; margin-top: 2px;">PASS (90/100)</div>
+            </div>
+            <div style="background: var(--bg-card); border: 1px solid var(--border-color); border-radius: 6px; padding: 10px;">
+              <div style="font-size: 11px; color: var(--text-muted);">Test Adequacy</div>
+              <div id="reviewTestScore" style="font-weight: 600; font-size: 14px; margin-top: 2px;">PASS (90/100)</div>
+            </div>
+            <div style="background: var(--bg-card); border: 1px solid var(--border-color); border-radius: 6px; padding: 10px;">
+              <div style="font-size: 11px; color: var(--text-muted);">Type Safety & Style</div>
+              <div id="reviewTypeScore" style="font-weight: 600; font-size: 14px; margin-top: 2px;">PASS (92/100)</div>
+            </div>
+          </div>
+
+          <h4 style="font-size: 12px; text-transform: uppercase; letter-spacing: 0.5px; color: var(--text-muted); margin-bottom: 12px;">Identified Issues</h4>
+          <div id="reviewIssuesList" style="max-height: 180px; overflow-y: auto; font-size: 12px;">
+            <div style="color: var(--text-muted); padding: 8px;">No semantic issues detected.</div>
+          </div>
+
+          <div class="modal-footer" style="margin-top: 20px;">
+            <button type="button" class="btn btn-secondary" id="btnDismissReviewModal">Close</button>
+          </div>
+        </div>
       </div>
     </div>
 

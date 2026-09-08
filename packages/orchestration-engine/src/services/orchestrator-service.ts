@@ -98,7 +98,11 @@ export class OrchestratorService {
 
   async executeNextStep(
     missionId: string,
-    options?: { simulateCheckExitCode?: number }
+    options?: {
+      simulateCheckExitCode?: number;
+      semanticReviewFiles?: Array<{ path: string; content: string }>;
+      semanticReviewDiff?: string;
+    }
   ): Promise<StepExecutionResult> {
     const mission = this.missions.get(missionId);
     if (!mission) {
@@ -139,11 +143,13 @@ export class OrchestratorService {
     this.taskEngine.acquireTaskLease(targetTask.id, assignedAgent.id, "native", "/tmp/ws");
     await this.taskEngine.transitionTask(targetTask.id, "RUNNING");
 
-    // 2. Perform Verification (AD-005)
+    // 2. Perform Dual-Layer Verification (AD-005 & Doc 02 Section 14)
     const exitCode = options?.simulateCheckExitCode ?? 0;
+    const policy = (targetTask.inputPayload?.policy as any) || "AUTOMATED";
+
     const evidence = await this.verificationService.verifyTask({
       taskId: targetTask.id,
-      policy: (targetTask.inputPayload?.policy as any) || "AUTOMATED",
+      policy,
       layer1Checks: [
         {
           name: "automated-verification",
@@ -153,6 +159,12 @@ export class OrchestratorService {
           }),
         },
       ],
+      semanticReviewInput: (policy === "MIXED" || options?.semanticReviewFiles || options?.semanticReviewDiff) ? {
+        taskId: targetTask.id,
+        files: options?.semanticReviewFiles,
+        diff: options?.semanticReviewDiff,
+        taskDescription: targetTask.name,
+      } : undefined,
       artifacts: [`artifacts/task-${targetTask.id}.output`],
     });
 
@@ -187,16 +199,23 @@ export class OrchestratorService {
       const currentFailures = (mission.taskFailures.get(targetTask.id) || 0) + 1;
       mission.taskFailures.set(targetTask.id, currentFailures);
 
+      const errorMessage = evidence.reviewerAssessment?.summary
+        || (exitCode !== 0 ? `Layer 1 checks failed (exitCode: ${exitCode})` : "Verification checks failed");
+
       if (currentFailures < 3) {
-        // Retry: transition to RETRYING so getReadyTasks picks it up
+        // Dynamic Re-planning (FR-403): transition to RETRYING so getReadyTasks picks it up
+        // Pass critique and issues to retry payload so worker context has the feedback
         await this.taskEngine.transitionTask(targetTask.id, "RETRYING", {
           retry: currentFailures,
-          error: `Verification checks failed (exitCode: ${exitCode})`,
+          error: errorMessage,
+          critique: evidence.reviewerAssessment,
+          issues: evidence.reviewerAssessment?.issues,
         });
       } else {
         // >= 3 failures: trip circuit breaker and mark FAILED
         await this.taskEngine.transitionTask(targetTask.id, "FAILED", {
-          error: `Max retries exceeded. Verification checks failed 3 times (last exitCode: ${exitCode})`,
+          error: `Max retries exceeded. ${errorMessage}`,
+          critique: evidence.reviewerAssessment,
         });
         mission.status = "PAUSED_FOR_HUMAN_OVERRIDE";
       }
@@ -205,7 +224,7 @@ export class OrchestratorService {
         completed: false,
         taskId: targetTask.id,
         verificationEvidence: evidence,
-        error: `Task failed verification ${currentFailures} times.`,
+        error: `Task failed verification ${currentFailures} times: ${errorMessage}`,
       };
     }
   }

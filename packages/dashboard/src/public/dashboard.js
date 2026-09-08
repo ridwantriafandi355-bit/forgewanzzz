@@ -1565,6 +1565,73 @@
     });
   }
 
+  // Layer 2 Semantic Review Modal Handlers
+  const elReviewModal = document.getElementById('reviewModal');
+  const elBtnCloseReviewModal = document.getElementById('btnCloseReviewModal');
+  const elBtnDismissReviewModal = document.getElementById('btnDismissReviewModal');
+
+  function closeReviewModal() {
+    if (elReviewModal) elReviewModal.classList.remove('active');
+  }
+
+  if (elBtnCloseReviewModal) elBtnCloseReviewModal.addEventListener('click', closeReviewModal);
+  if (elBtnDismissReviewModal) elBtnDismissReviewModal.addEventListener('click', closeReviewModal);
+
+  window.openTaskReview = async function(taskId) {
+    try {
+      const res = await fetch(`/api/task/review?taskId=${encodeURIComponent(taskId)}`);
+      const data = await res.json();
+      if (!data.success || !data.assessment) return;
+
+      const a = data.assessment;
+      const elStatus = document.getElementById('reviewStatusBadge');
+      const elAgent = document.getElementById('reviewAgentId');
+      const elScore = document.getElementById('reviewOverallScore');
+      const elSummary = document.getElementById('reviewSummary');
+      const elSec = document.getElementById('reviewSecScore');
+      const elArch = document.getElementById('reviewArchScore');
+      const elTest = document.getElementById('reviewTestScore');
+      const elType = document.getElementById('reviewTypeScore');
+      const elIssues = document.getElementById('reviewIssuesList');
+
+      if (elStatus) {
+        elStatus.textContent = a.passed ? 'APPROVED' : 'REJECTED / NEEDS REVISION';
+        elStatus.className = `badge ${a.passed ? 'badge-success' : 'badge-danger'}`;
+      }
+      if (elAgent) elAgent.textContent = a.reviewerAgentId || 'evaluator.senior-architect';
+      if (elScore) elScore.textContent = a.overallScore ?? 0;
+      if (elSummary) elSummary.textContent = a.summary || a.comments || 'No assessment summary';
+
+      if (a.criteria) {
+        if (elSec) elSec.textContent = `${a.criteria.securityAudit.passed ? 'PASS' : 'FAIL'} (${a.criteria.securityAudit.score}/100)`;
+        if (elArch) elArch.textContent = `${a.criteria.architecturalCompliance.passed ? 'PASS' : 'FAIL'} (${a.criteria.architecturalCompliance.score}/100)`;
+        if (elTest) elTest.textContent = `${a.criteria.testAdequacy.passed ? 'PASS' : 'FAIL'} (${a.criteria.testAdequacy.score}/100)`;
+        if (elType) elType.textContent = `${a.criteria.typeSafetyAndCleanliness.passed ? 'PASS' : 'FAIL'} (${a.criteria.typeSafetyAndCleanliness.score}/100)`;
+      }
+
+      if (elIssues) {
+        if (!a.issues || a.issues.length === 0) {
+          elIssues.innerHTML = '<div style="color: var(--text-muted); padding: 8px;">No semantic issues detected. Code meets sovereign standards.</div>';
+        } else {
+          elIssues.innerHTML = a.issues.map(iss => `
+            <div style="padding: 8px; border-bottom: 1px solid var(--border-color); display: flex; justify-content: space-between;">
+              <div>
+                <span class="badge ${iss.severity === 'CRITICAL' ? 'badge-danger' : 'badge-warning'}" style="font-size: 10px; margin-right: 6px;">${escapeHtml(iss.severity)}</span>
+                <strong style="font-family: monospace;">${escapeHtml(iss.rule)}</strong>
+                <div style="color: var(--text-muted); font-size: 11px; margin-top: 2px;">${escapeHtml(iss.message)}</div>
+              </div>
+              <div style="font-size: 11px; color: var(--text-muted); text-align: right;">${escapeHtml(iss.file || '')}</div>
+            </div>
+          `).join('');
+        }
+      }
+
+      if (elReviewModal) elReviewModal.classList.add('active');
+    } catch (err) {
+      console.error('Failed to load review:', err);
+    }
+  };
+
   // Init
   connectSSE();
   fetchOrgList().then(() => fetchOrgChart());

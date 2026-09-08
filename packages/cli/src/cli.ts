@@ -11,6 +11,7 @@ import { memoryCommand } from "./commands/memory.js";
 import { securityCommand } from "./commands/security.js";
 import { orgCommand } from "./commands/org.js";
 import { projectCommand } from "./commands/project.js";
+import { reviewCommand } from "./commands/review.js";
 
 export async function runCli(argv: string[]): Promise<void> {
   const args = argv.slice(2);
@@ -199,8 +200,27 @@ export async function runCli(argv: string[]): Promise<void> {
       break;
     }
 
+    case "review": {
+      let filePath: string | undefined;
+      let taskId: string | undefined;
+
+      const fileIdx = args.indexOf("--file");
+      if (fileIdx !== -1 && args[fileIdx + 1]) {
+        filePath = args[fileIdx + 1];
+      } else if (args[1] && !args[1].startsWith("--")) {
+        taskId = args[1];
+      }
+
+      await reviewCommand({
+        taskId,
+        filePath,
+        json: isJson,
+      });
+      break;
+    }
+
     default:
-      console.log("Usage: forge <init|run|status|verify|discovery|connections|resume|dlq|memory|security|org|project|ui>");
+      console.log("Usage: forge <init|run|status|verify|review|discovery|connections|resume|dlq|memory|security|org|project|ui>");
       break;
   }
 }

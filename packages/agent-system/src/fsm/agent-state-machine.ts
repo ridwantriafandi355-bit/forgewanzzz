@@ -29,6 +29,7 @@ export class AgentStateMachine {
       case "PLANNING":
         if (event.type === "PLAN_FORMULATED") to = "EXECUTING";
         else if (event.type === "FAIL") to = "FAILED";
+        else if (event.type === "RESET") to = "IDLE";
         else this.throwInvalid(from, event.type);
         break;
 

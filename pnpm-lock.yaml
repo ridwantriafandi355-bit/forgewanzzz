@@ -38,6 +38,9 @@ importers:
       '@forge/storage':
         specifier: workspace:*
         version: link:../storage
+      '@forge/verification-engine':
+        specifier: workspace:*
+        version: link:../verification-engine
 
   packages/auth-connections:
     dependencies:
