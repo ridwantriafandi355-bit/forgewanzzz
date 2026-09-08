@@ -208,7 +208,9 @@
   // --- 1. ORG CHART VIEW ---
   async function fetchOrgChart() {
     try {
-      const res = await fetch('/api/org');
+      const activeOrgId = elSelectActiveOrg?.value || '';
+      const url = activeOrgId ? `/api/org?orgId=${encodeURIComponent(activeOrgId)}` : '/api/org';
+      const res = await fetch(url);
       const data = await res.json();
       if (!data.success) return;
 
@@ -1474,9 +1476,98 @@
     });
   }
 
+  // --- MULTI-ORG CONTROLS (DOC 16) ---
+  const elSelectActiveOrg = document.getElementById('selectActiveOrg');
+  const elBtnOpenNewOrgModal = document.getElementById('btnOpenNewOrgModal');
+  const elOrgModal = document.getElementById('orgModal');
+  const elBtnCloseOrgModal = document.getElementById('btnCloseOrgModal');
+  const elBtnCancelOrgModal = document.getElementById('btnCancelOrgModal');
+  const elOrgForm = document.getElementById('orgForm');
+  const elInputOrgId = document.getElementById('inputOrgId');
+  const elInputOrgName = document.getElementById('inputOrgName');
+  const elInputOrgMaxAgents = document.getElementById('inputOrgMaxAgents');
+
+  async function fetchOrgList() {
+    if (!elSelectActiveOrg) return;
+    try {
+      const res = await fetch('/api/org/list');
+      const data = await res.json();
+      if (!data.success) return;
+
+      const currentVal = elSelectActiveOrg.value;
+      elSelectActiveOrg.innerHTML = '';
+
+      const orgs = data.organizations || [];
+      orgs.forEach((o) => {
+        const opt = document.createElement('option');
+        opt.value = o.id;
+        opt.textContent = `${o.name} (${o.maxAgents} agents max)`;
+        elSelectActiveOrg.appendChild(opt);
+      });
+
+      if (currentVal && orgs.some((o) => o.id === currentVal)) {
+        elSelectActiveOrg.value = currentVal;
+      }
+    } catch {}
+  }
+
+  if (elSelectActiveOrg) {
+    elSelectActiveOrg.addEventListener('change', () => {
+      fetchOrgChart();
+    });
+  }
+
+  if (elBtnOpenNewOrgModal) {
+    elBtnOpenNewOrgModal.addEventListener('click', () => {
+      if (elOrgModal) elOrgModal.classList.add('active');
+    });
+  }
+  if (elBtnCloseOrgModal) {
+    elBtnCloseOrgModal.addEventListener('click', () => {
+      if (elOrgModal) elOrgModal.classList.remove('active');
+    });
+  }
+  if (elBtnCancelOrgModal) {
+    elBtnCancelOrgModal.addEventListener('click', () => {
+      if (elOrgModal) elOrgModal.classList.remove('active');
+    });
+  }
+  if (elOrgForm) {
+    elOrgForm.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const id = elInputOrgId?.value?.trim();
+      const name = elInputOrgName?.value?.trim();
+      const maxAgents = parseInt(elInputOrgMaxAgents?.value || '5', 10);
+      if (!id || !name) return;
+
+      try {
+        const res = await fetch('/api/org', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ id, name, maxAgents }),
+        });
+        const data = await res.json();
+        if (data.success) {
+          appendLog('success', `Created AI Organization: "${name}" (${id})`, 'SYS');
+          if (elOrgModal) elOrgModal.classList.remove('active');
+          if (elOrgForm) elOrgForm.reset();
+          await fetchOrgList();
+          if (elSelectActiveOrg) {
+            elSelectActiveOrg.value = id;
+            fetchOrgChart();
+          }
+        } else {
+          appendLog('error', `Failed to create organization: ${data.error}`, 'SYS');
+        }
+      } catch (err) {
+        appendLog('error', `Network error creating organization: ${err.message}`, 'SYS');
+      }
+    });
+  }
+
   // Init
   connectSSE();
-  fetchOrgChart();
+  fetchOrgList().then(() => fetchOrgChart());
   fetchTickets();
   fetchApprovals();
   fetchBudgets();

@@ -13,6 +13,8 @@ import {
   StoredConnection,
   MemoryRepository,
   AuditChainRepository,
+  OrganizationRepository,
+  ProjectRepository,
 } from "@forge/storage";
 import { EventBus } from "@forge/core";
 import { TaskEngineService } from "@forge/task-engine";
@@ -35,6 +37,8 @@ export interface DashboardServerOptions {
   connectionRepo?: ConnectionRepository;
   memoryRepo?: MemoryRepository;
   auditRepo?: AuditChainRepository;
+  orgRepo?: OrganizationRepository;
+  projectRepo?: ProjectRepository;
   publicDir?: string;
   workspaceRoot?: string;
 }
@@ -75,6 +79,8 @@ export class DashboardServer {
   private connectionRepo: ConnectionRepository;
   private memoryRepo: MemoryRepository;
   private auditRepo: AuditChainRepository;
+  private orgRepo: OrganizationRepository;
+  private projectRepo: ProjectRepository;
 
   constructor(options: DashboardServerOptions) {
     this.options = options;
@@ -83,7 +89,10 @@ export class DashboardServer {
     this.connectionRepo = options.connectionRepo || new ConnectionRepository(options.db);
     this.memoryRepo = options.memoryRepo || new MemoryRepository(options.db);
     this.auditRepo = options.auditRepo || new AuditChainRepository(options.db);
+    this.orgRepo = options.orgRepo || new OrganizationRepository(options.db);
+    this.projectRepo = options.projectRepo || new ProjectRepository(options.db);
     this.seedDefaultConnections();
+    this.seedDefaultOrganization();
   }
 
   private seedDefaultConnections(): void {
@@ -162,6 +171,22 @@ export class DashboardServer {
     } catch {}
   }
 
+  private seedDefaultOrganization(): void {
+    try {
+      const existing = this.orgRepo.findById("org_forge_default");
+      if (!existing) {
+        this.orgRepo.create({
+          id: "org_forge_default",
+          name: "FORGE WANZZ INC.",
+          maxAgents: 5,
+          metadata: {
+            tagline: "Autonomous Software Factory Operating System",
+            tier: "FOUNDING_CORP",
+          },
+        });
+      }
+    } catch {}
+  }
 
   public async start(): Promise<number> {
     const candidate1 = path.join(__dirname, "..", "public");
@@ -273,9 +298,88 @@ export class DashboardServer {
     const raw = this.options.db.getRawDb();
 
     // ==========================================
-    // 1. PAPERCLIP COMPANY & ORG CHART API
+    // 1. PAPERCLIP COMPANY & ORG CHART API (Doc 16)
     // ==========================================
+    if (pathname === "/api/org/list" && method === "GET") {
+      const orgs = this.orgRepo.findAll();
+      res.writeHead(200, { "Content-Type": "application/json" });
+      res.end(JSON.stringify({ success: true, organizations: orgs }));
+      return;
+    }
+
+    if (pathname === "/api/org" && method === "POST") {
+      const body = await this.readBody(req);
+      if (!body.id) {
+        res.writeHead(400, { "Content-Type": "application/json" });
+        res.end(JSON.stringify({ success: false, error: "id is required" }));
+        return;
+      }
+      const created = this.orgRepo.create({
+        id: body.id,
+        name: body.name || body.id,
+        maxAgents: body.maxAgents ? Number(body.maxAgents) : 5,
+        projectId: body.projectId,
+        metadata: body.metadata,
+      });
+
+      this.broadcastEvent({
+        type: "ORGANIZATION_CREATED",
+        organization: created,
+        timestamp: new Date().toISOString(),
+      });
+
+      res.writeHead(200, { "Content-Type": "application/json" });
+      res.end(JSON.stringify({ success: true, organization: created }));
+      return;
+    }
+
+    if (pathname === "/api/project/config" && method === "GET") {
+      const projectId = url.searchParams.get("projectId") || "default";
+      let cfg = this.projectRepo.getConfig(projectId);
+      if (!cfg) {
+        cfg = {
+          projectId,
+          defaultOrgId: "org_forge_default",
+          budgetLimitUsd: 100.0,
+        };
+        this.projectRepo.saveConfig(cfg);
+      }
+
+      res.writeHead(200, { "Content-Type": "application/json" });
+      res.end(JSON.stringify({ success: true, config: cfg }));
+      return;
+    }
+
+    if (pathname === "/api/project/config" && method === "POST") {
+      const body = await this.readBody(req);
+      const projectId = body.projectId || "default";
+      this.projectRepo.saveConfig({
+        projectId,
+        defaultOrgId: body.defaultOrgId,
+        budgetLimitUsd: body.budgetLimitUsd !== undefined ? Number(body.budgetLimitUsd) : undefined,
+        securityPolicy: body.securityPolicy,
+        modelRoutingPreferences: body.modelRoutingPreferences,
+      });
+
+      const updated = this.projectRepo.getConfig(projectId);
+
+      this.broadcastEvent({
+        type: "PROJECT_CONFIG_UPDATED",
+        config: updated,
+        timestamp: new Date().toISOString(),
+      });
+
+      res.writeHead(200, { "Content-Type": "application/json" });
+      res.end(JSON.stringify({ success: true, config: updated }));
+      return;
+    }
+
     if (pathname === "/api/org" && method === "GET") {
+      const targetOrgId = url.searchParams.get("orgId") || "org_forge_default";
+      const orgRecord = this.orgRepo.findById(targetOrgId);
+      const companyName = orgRecord?.name || "FORGE WANZZ INC.";
+      const tagline = (orgRecord?.metadata as any)?.tagline || "Autonomous Software Factory Operating System";
+
       let activeLeases: any[] = [];
       try {
         activeLeases = raw
@@ -370,8 +474,8 @@ export class DashboardServer {
         JSON.stringify({
           success: true,
           company: {
-            name: "FORGE WANZZ INC.",
-            tagline: "Autonomous Software Factory Operating System",
+            name: companyName,
+            tagline: tagline,
             headcount: hierarchy.filter((m) => !m.isHuman).length,
             monthlyBudgetUsd: 100.0,
             currentBurnUsd: 1.42,

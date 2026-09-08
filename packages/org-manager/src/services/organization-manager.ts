@@ -1,4 +1,5 @@
 import { randomUUID } from "node:crypto";
+import type { OrganizationRepository } from "@forge/storage";
 import type {
   OrganizationSpec,
   OrganizationRecord,
@@ -11,7 +12,17 @@ export class OrganizationManager {
   private organizations = new Map<string, OrganizationRecord>();
   private members = new Map<string, AgentMemberRecord>();
 
+  constructor(private repo?: OrganizationRepository) {}
+
   createOrganization(spec: OrganizationSpec): OrganizationRecord {
+    if (this.repo) {
+      const existing = this.repo.findById(spec.id);
+      if (existing) {
+        throw new Error(`Organization with id '${spec.id}' already exists.`);
+      }
+      return this.repo.create(spec);
+    }
+
     if (this.organizations.has(spec.id)) {
       throw new Error(`Organization with id '${spec.id}' already exists.`);
     }
@@ -20,6 +31,7 @@ export class OrganizationManager {
       ...spec,
       status: "ACTIVE",
       createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
     };
 
     this.organizations.set(spec.id, record);
@@ -27,6 +39,14 @@ export class OrganizationManager {
   }
 
   getOrganization(orgId: string): OrganizationRecord {
+    if (this.repo) {
+      const org = this.repo.findById(orgId);
+      if (!org) {
+        throw new Error(`Organization '${orgId}' not found.`);
+      }
+      return org;
+    }
+
     const org = this.organizations.get(orgId);
     if (!org) {
       throw new Error(`Organization '${orgId}' not found.`);
@@ -34,13 +54,37 @@ export class OrganizationManager {
     return org;
   }
 
+  listOrganizations(projectId?: string): OrganizationRecord[] {
+    if (this.repo) {
+      return this.repo.findAll(projectId);
+    }
+
+    const all = Array.from(this.organizations.values());
+    if (projectId) {
+      return all.filter((o) => o.projectId === projectId);
+    }
+    return all;
+  }
+
   getOrganizationMembers(orgId: string): AgentMemberRecord[] {
+    if (this.repo) {
+      return this.repo.findMembersByOrg(orgId, "ACTIVE") as AgentMemberRecord[];
+    }
+
     return Array.from(this.members.values()).filter(
       (m) => m.organizationId === orgId && m.status === "ACTIVE"
     );
   }
 
   getMember(agentId: string): AgentMemberRecord | undefined {
+    if (this.repo) {
+      const member = this.repo.findMemberById(agentId);
+      if (!member || member.status === "DECOMMISSIONED") {
+        return undefined;
+      }
+      return member as AgentMemberRecord;
+    }
+
     const member = this.members.get(agentId);
     if (!member || member.status === "DECOMMISSIONED") {
       return undefined;
@@ -50,15 +94,20 @@ export class OrganizationManager {
 
   requestTeam(orgId: string, request: TeamFormationRequest): TeamFormationResult {
     const org = this.getOrganization(orgId);
-    const activeMembers = this.getOrganizationMembers(orgId);
+    const activeMembersCount = this.repo
+      ? this.repo.countActiveMembers(orgId)
+      : this.getOrganizationMembers(orgId).length;
 
     // Calculate total agents requested
-    const requestedCount = request.requiredRoles.reduce((sum, r) => sum + r.count, 0);
+    const requestedCount = request.requiredRoles.reduce(
+      (sum, r) => sum + r.count,
+      0
+    );
 
     // Enforce quota: active + requested <= maxAgents
-    if (activeMembers.length + requestedCount > org.maxAgents) {
+    if (activeMembersCount + requestedCount > org.maxAgents) {
       throw new Error(
-        `Exceeds organization maximum agent quota. Current active: ${activeMembers.length}, requested: ${requestedCount}, limit: ${org.maxAgents}.`
+        `Exceeds organization maximum agent quota. Current active: ${activeMembersCount}, requested: ${requestedCount}, limit: ${org.maxAgents}.`
       );
     }
 
@@ -76,7 +125,11 @@ export class OrganizationManager {
           createdAt: new Date().toISOString(),
         };
 
-        this.members.set(agentId, member);
+        if (this.repo) {
+          this.repo.saveMember(member);
+        } else {
+          this.members.set(agentId, member);
+        }
         provisioned.push(member);
       }
     }
@@ -88,11 +141,20 @@ export class OrganizationManager {
   }
 
   decommissionMember(agentId: string): void {
+    if (this.repo) {
+      this.repo.updateMemberStatus(agentId, "DECOMMISSIONED");
+      return;
+    }
+
     const member = this.members.get(agentId);
     if (!member) {
       return;
     }
 
     member.status = "DECOMMISSIONED";
+  }
+
+  validateTenantAccess(tenantOrgId: string, targetOrgId: string): boolean {
+    return tenantOrgId === targetOrgId;
   }
 }

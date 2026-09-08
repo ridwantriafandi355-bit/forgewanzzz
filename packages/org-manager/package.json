@@ -11,7 +11,8 @@
     }
   },
   "dependencies": {
-    "@forge/core": "workspace:*"
+    "@forge/core": "workspace:*",
+    "@forge/storage": "workspace:*"
   },
   "scripts": {
     "build": "tsc",

@@ -178,6 +178,9 @@ importers:
       '@forge/core':
         specifier: workspace:*
         version: link:../core
+      '@forge/storage':
+        specifier: workspace:*
+        version: link:../storage
 
   packages/provider-router:
     dependencies:

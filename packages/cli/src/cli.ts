@@ -9,6 +9,8 @@ import { resumeCommand } from "./commands/resume.js";
 import { dlqCommand } from "./commands/dlq.js";
 import { memoryCommand } from "./commands/memory.js";
 import { securityCommand } from "./commands/security.js";
+import { orgCommand } from "./commands/org.js";
+import { projectCommand } from "./commands/project.js";
 
 export async function runCli(argv: string[]): Promise<void> {
   const args = argv.slice(2);
@@ -139,8 +141,66 @@ export async function runCli(argv: string[]): Promise<void> {
       break;
     }
 
+    case "org": {
+      const sub = (args[1] === "create" || args[1] === "members") ? args[1] : "list";
+      let orgId: string | undefined;
+      let name: string | undefined;
+      let maxAgents: number | undefined;
+      let projectId: string | undefined;
+
+      if ((sub === "create" || sub === "members") && args[2] && !args[2].startsWith("--")) {
+        orgId = args[2];
+      }
+
+      const nameIdx = args.indexOf("--name");
+      if (nameIdx !== -1 && args[nameIdx + 1]) name = args[nameIdx + 1];
+
+      const maxIdx = args.indexOf("--max-agents");
+      if (maxIdx !== -1 && args[maxIdx + 1]) maxAgents = parseInt(args[maxIdx + 1], 10);
+
+      const projIdx = args.indexOf("--project");
+      if (projIdx !== -1 && args[projIdx + 1]) projectId = args[projIdx + 1];
+
+      await orgCommand({
+        subcommand: sub,
+        orgId,
+        name,
+        maxAgents,
+        projectId,
+        json: isJson,
+      });
+      break;
+    }
+
+    case "project": {
+      const sub = args[1] === "config" ? "config" : "list";
+      let setKey: string | undefined;
+      let setValue: string | undefined;
+      let getKey: string | undefined;
+
+      const setIdx = args.indexOf("--set");
+      if (setIdx !== -1 && args[setIdx + 1] && args[setIdx + 2]) {
+        setKey = args[setIdx + 1];
+        setValue = args[setIdx + 2];
+      }
+
+      const getIdx = args.indexOf("--get");
+      if (getIdx !== -1 && args[getIdx + 1]) {
+        getKey = args[getIdx + 1];
+      }
+
+      await projectCommand({
+        subcommand: sub,
+        setKey,
+        setValue,
+        getKey,
+        json: isJson,
+      });
+      break;
+    }
+
     default:
-      console.log("Usage: forge <init|run|status|verify|discovery|connections|resume|dlq|memory|security|ui>");
+      console.log("Usage: forge <init|run|status|verify|discovery|connections|resume|dlq|memory|security|org|project|ui>");
       break;
   }
 }
